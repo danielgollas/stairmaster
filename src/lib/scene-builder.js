@@ -222,24 +222,27 @@ export function buildScene(p) {
   // --- Risers ---
   const risersGroup = new THREE.Group();
 
+  const fullBoardH = 5.5;  // 2x6 actual width used for riser boards
+
   for (let i = 0; i < p.numTreads; i++) {
-    // Riser sits ON the stringer tread of the step below, butting against
-    // the tread boards on its own step. Positioned one riserBoardThickness
-    // forward so its back face meets the tread board front edge.
     const riserX = i * p.treadDepth - p.riserBoardThickness;
-    // Bottom riser sits on sill plate top, not pad surface
-    const sillTop = p.padAboveGrade + p.sillPlateThickness;
-    const riserBottom = (i > 0) ? notchZ(i - 1) : sillTop;
+    const sillTopZ = p.padAboveGrade + p.sillPlateThickness;
+    const riserBottom = (i > 0) ? notchZ(i - 1) : sillTopZ;
     const riserTop = notchZ(i);
     const riserH = riserTop - riserBottom;
+    const ripH = riserH - fullBoardH;
 
-    // Riser boards are cut to fit BETWEEN stringers
-    for (let s = 0; s < p.numStringers - 1; s++) {
-      const yStart = sillY + s * p.stringerOC + p.stringerStockThickness;
-      const segLen = p.stringerOC - p.stringerStockThickness;
-      const riser = makeMesh(box(p.riserBoardThickness, segLen, riserH), COLORS.riser);
-      riser.position.set(riserX + p.riserBoardThickness / 2, yStart + segLen / 2, riserBottom + riserH / 2);
-      risersGroup.add(riser);
+    // Single board spans full stair width
+    // Bottom piece: full 2x6 (5.5")
+    const fullBoard = makeMesh(box(p.riserBoardThickness, p.stairWidth, Math.min(fullBoardH, riserH)), COLORS.riser);
+    fullBoard.position.set(riserX + p.riserBoardThickness / 2, p.stairWidth / 2, riserBottom + Math.min(fullBoardH, riserH) / 2);
+    risersGroup.add(fullBoard);
+
+    // Top piece: ripped 2x6 to fill remaining height
+    if (ripH > 0.01) {
+      const ripBoard = makeMesh(box(p.riserBoardThickness, p.stairWidth, ripH), COLORS.riser);
+      ripBoard.position.set(riserX + p.riserBoardThickness / 2, p.stairWidth / 2, riserBottom + fullBoardH + ripH / 2);
+      risersGroup.add(ripBoard);
     }
   }
 

@@ -36,6 +36,7 @@
     <div class="row"><span>Stringer length</span><strong>{fmt(stringerLength)}"</strong></div>
     <div class="row"><span>Num stringers</span><strong>{numStringers}</strong></div>
     <div class="row"><span>Throat</span><strong>{fmt(throat)}"</strong></div>
+    <div class="row"><span>Riser board</span><strong>2x6 + {fmt(actualRiserHeight - 5.5, 2)}" rip</strong></div>
   </div>
 
   <div class="section">
