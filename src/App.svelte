@@ -26,10 +26,19 @@
   let tensionTie = $state(DEFAULTS.tensionTie);
   let stringerHanger = $state(DEFAULTS.stringerHanger);
 
-  let viewMode = $state('3d');
+  let viewMode = $state('side');
   let stlData = $state(null);
   let workerReady = $state(false);
   let rendering = $state(false);
+
+  // Visibility toggles
+  let visibility = $state({
+    grid: true, groundPlane: true, concretePad: true, sillPlate: true,
+    bottomPosts: true, postBases: true, stringers: true,
+    blocking: true, tensionTies: true, treads: true,
+    risers: true, stringerHangers: true, rimJoist: true,
+    deckSurface: true, topPosts: true,
+  });
 
   // Computed geometry
   let geometry = $derived(computeStairGeometry({
@@ -79,7 +88,7 @@
     bottomDrop: stringerProfile.bottomDrop,
     topTreadReduction: stringerProfile.topTreadReduction,
     postHeight: 42,
-  }));
+  }, visibility));
 
   // Web Worker
   let worker;
@@ -178,6 +187,14 @@
         <span class="loading">Loading OpenSCAD WASM...</span>
       {/if}
     </div>
+    <div class="visibility-bar">
+      {#each Object.entries(visibility) as [key, val]}
+        <label class="vis-toggle">
+          <input type="checkbox" bind:checked={visibility[key]} />
+          <span>{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+        </label>
+      {/each}
+    </div>
     <Viewport {stlData} {viewMode} />
   </div>
 
@@ -267,6 +284,27 @@
     font-size: 0.8em;
     color: #fbbf24;
     margin-left: auto;
+  }
+  .visibility-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 6px 12px;
+    background: #0f172a;
+    border-bottom: 1px solid #334155;
+    font-size: 0.75em;
+  }
+  .vis-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #94a3b8;
+    cursor: pointer;
+    text-transform: capitalize;
+  }
+  .vis-toggle input[type="checkbox"] {
+    accent-color: #60a5fa;
+    margin: 0;
   }
 
   @media (max-width: 1024px) {

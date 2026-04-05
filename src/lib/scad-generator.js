@@ -2,7 +2,15 @@
  * Generate complete OpenSCAD source from stair parameters.
  * Returns a string of valid .scad code.
  */
-export function generateScad(p) {
+export function generateScad(p, visibility = {}) {
+  const v = {
+    groundPlane: true, concretePad: true, sillPlate: true,
+    bottomPosts: true, postBases: true, stringers: true,
+    blocking: true, tensionTies: true, treads: true,
+    risers: true, stringerHangers: true, rimJoist: true,
+    deckSurface: true, topPosts: true, grid: true,
+    ...visibility,
+  };
   return `
 // Stairmaster — Generated OpenSCAD Model
 // All dimensions in inches
@@ -44,6 +52,8 @@ decking_color = [0.63, 0.38, 0.04];
 hardware_color = [0.86, 0.16, 0.16];
 ground_color = [0.13, 0.77, 0.13, 0.3];
 
+${gridModule()}
+
 ${groundPlaneModule()}
 
 ${concretePadModule()}
@@ -72,10 +82,25 @@ ${deckSurfaceModule()}
 
 ${topPostsModule()}
 
-${staircaseModule()}
+${staircaseModule(v)}
 
 staircase();
 `;
+}
+
+function gridModule() {
+  return `
+module floor_grid() {
+  color([0.3, 0.3, 0.3, 0.5])
+  for (x = [-24 : 12 : total_run + 48]) {
+    translate([x, -24, -0.05])
+      cube([0.25, stair_width + 48, 0.05]);
+  }
+  for (y = [-24 : 12 : stair_width + 48]) {
+    translate([-24, y, -0.05])
+      cube([total_run + 72, 0.25, 0.05]);
+  }
+}`;
 }
 
 function groundPlaneModule() {
@@ -150,7 +175,9 @@ module stringer(offset_y) {
   by = stringer_w * cos(angle);   // note: this goes "down" from top edge (negative in our coords, but we negate)
 
   color(pt_lumber_color)
-  translate([0, offset_y, pad_above + sill_plate_h]) {
+  translate([0, offset_y, pad_above + sill_plate_h])
+  // Rotate from XY polygon plane to XZ (standing up), then extrude along Y for thickness
+  rotate([270, 0, 0]) {
     linear_extrude(height = stringer_t) {
       // Build polygon clockwise: sawtooth top edge (left to right), then bottom edge (right to left)
       // All coords in installed frame: x = horizontal, y = vertical (up)
@@ -290,28 +317,29 @@ module top_posts() {
 }`;
 }
 
-function staircaseModule() {
+function staircaseModule(v) {
   return `
 module staircase() {
-  ground_plane();
-  concrete_pad();
-  sill_plate();
-  bottom_posts();
-  post_bases();
+  ${v.grid ? 'floor_grid();' : ''}
+  ${v.groundPlane ? 'ground_plane();' : ''}
+  ${v.concretePad ? 'concrete_pad();' : ''}
+  ${v.sillPlate ? 'sill_plate();' : ''}
+  ${v.bottomPosts ? 'bottom_posts();' : ''}
+  ${v.postBases ? 'post_bases();' : ''}
 
-  // Stringers
+  ${v.stringers ? `// Stringers
   for (i = [0 : num_stringers - 1]) {
     y = (stair_width - top_post_spacing) / 2 + i * stringer_oc;
     stringer(y);
-  }
+  }` : ''}
 
-  blocking();
-  tension_ties();
-  treads();
-  risers();
-  stringer_hangers();
-  rim_joist();
-  deck_surface();
-  top_posts();
+  ${v.blocking ? 'blocking();' : ''}
+  ${v.tensionTies ? 'tension_ties();' : ''}
+  ${v.treads ? 'treads();' : ''}
+  ${v.risers ? 'risers();' : ''}
+  ${v.stringerHangers ? 'stringer_hangers();' : ''}
+  ${v.rimJoist ? 'rim_joist();' : ''}
+  ${v.deckSurface ? 'deck_surface();' : ''}
+  ${v.topPosts ? 'top_posts();' : ''}
 }`;
 }

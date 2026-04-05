@@ -4,7 +4,8 @@
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-  let { stlData = null, viewMode = '3d' } = $props();
+  let { stlData = null, viewMode = 'side' } = $props();
+  let hasInitialFit = false;
 
   let canvas;
   let renderer, scene, camera, controls, mesh;
@@ -85,23 +86,26 @@
     mesh = new THREE.Mesh(geometry, material);
     scene.add(mesh);
 
-    // Auto-fit camera to model bounds
-    const box = new THREE.Box3().setFromObject(mesh);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
+    // Only auto-fit camera on first load, not on parameter changes
+    if (!hasInitialFit) {
+      hasInitialFit = true;
+      const box = new THREE.Box3().setFromObject(mesh);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
 
-    if (controls) {
-      controls.target.copy(center);
-      controls.update();
-    }
+      if (controls) {
+        controls.target.copy(center);
+        controls.update();
+      }
 
-    if (viewMode === '3d') {
-      camera.position.set(
-        center.x - maxDim * 0.8,
-        center.y + maxDim * 0.6,
-        center.z + maxDim * 1.2
-      );
+      if (camera.isPerspectiveCamera) {
+        camera.position.set(
+          center.x - maxDim * 0.8,
+          center.y + maxDim * 0.6,
+          center.z + maxDim * 1.2
+        );
+      }
     }
 
     requestRender();
