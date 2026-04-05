@@ -5,6 +5,7 @@
     riserHeight = $bindable(),
     treadDepth = $bindable(),
     stringerOC = $bindable(),
+    stringerPosition = $bindable(),
     deckingThickness = $bindable(),
     riserBoardThickness = $bindable(),
     rimJoistWidth = $bindable(),
@@ -66,10 +67,17 @@
         <input type="number" bind:value={treadDepth} step="0.125" min="9" />
       </label>
       <label>
-        <span>Stringer OC</span>
+        <span>Max stringer OC</span>
         <div class="toggle-group">
           <button class:active={stringerOC === 12} onclick={() => stringerOC = 12}>12"</button>
           <button class:active={stringerOC === 16} onclick={() => stringerOC = 16}>16"</button>
+        </div>
+      </label>
+      <label>
+        <span>Stringers</span>
+        <div class="toggle-group">
+          <button class:active={stringerPosition === 'inside'} onclick={() => stringerPosition = 'inside'}>Inside posts</button>
+          <button class:active={stringerPosition === 'outside'} onclick={() => stringerPosition = 'outside'}>Outside posts</button>
         </div>
       </label>
     </div>

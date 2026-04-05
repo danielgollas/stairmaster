@@ -8,6 +8,7 @@ const COLORS = {
   post:      0x996626,
   decking:   0x8c5a1a,
   riser:     0x804d14,
+  riserRip:  0x6b3d0f,
   blocking:  0xbf8c33,
   hardware:  0xcc3333,
   rimJoist:  0xa67320,
@@ -138,12 +139,15 @@ export function buildScene(p) {
 
   const seatZ = p.padAboveGrade + p.sillPlateThickness;
 
+  // Stringer Y positions based on post positions
+  const firstStringerY = (p.stringerPosition === 'outside')
+    ? sillY - ps - p.stringerStockThickness
+    : sillY;
+
   for (let i = 0; i < p.numStringers; i++) {
-    const y = sillY + i * p.stringerOC;
+    const y = firstStringerY + i * p.actualOC;
     const geo = baseGeo.clone();
     const mesh = makeMesh(geo, COLORS.stringer);
-    // Shape y=0 = seat = sill plate top. position.z = seatZ maps y=0 to sill plate top.
-    // First notch y=(rise-drop) maps to z = seatZ + rise - drop = correct tread bottom.
     mesh.position.set(0, y + p.stringerStockThickness, seatZ);
     stringerGroup.add(mesh);
   }
@@ -158,8 +162,8 @@ export function buildScene(p) {
   const blockZ = p.padAboveGrade + p.sillPlateThickness + blockHeight / 2;
 
   for (let i = 0; i < p.numStringers - 1; i++) {
-    const yStart = sillY + i * p.stringerOC + p.stringerStockThickness;
-    const blockLen = p.stringerOC - p.stringerStockThickness;
+    const yStart = firstStringerY + i * p.actualOC + p.stringerStockThickness;
+    const blockLen = p.actualOC - p.stringerStockThickness;
     // Blocking left face aligns with post right face
     const blockX = padShift + ps + blockThickness / 2;
     const block = makeMesh(box(blockThickness, blockLen, blockHeight), COLORS.blocking);
@@ -240,7 +244,7 @@ export function buildScene(p) {
 
     // Top piece: ripped 2x6 to fill remaining height
     if (ripH > 0.01) {
-      const ripBoard = makeMesh(box(p.riserBoardThickness, p.stairWidth, ripH), COLORS.riser);
+      const ripBoard = makeMesh(box(p.riserBoardThickness, p.stairWidth, ripH), COLORS.riserRip);
       ripBoard.position.set(riserX + p.riserBoardThickness / 2, p.stairWidth / 2, riserBottom + fullBoardH + ripH / 2);
       risersGroup.add(ripBoard);
     }
@@ -252,7 +256,7 @@ export function buildScene(p) {
   const hangersGroup = new THREE.Group();
 
   for (let i = 0; i < p.numStringers; i++) {
-    const y = sillY + i * p.stringerOC;
+    const y = firstStringerY + i * p.actualOC;
     const hanger = makeMesh(box(1, p.stringerStockThickness, 4), COLORS.hardware);
     hanger.position.set(p.totalRun - 0.5, y + p.stringerStockThickness / 2, p.totalHeight - p.deckingThickness - p.rimJoistWidth + 2);
     hangersGroup.add(hanger);

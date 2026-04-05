@@ -10,6 +10,9 @@ export function computeStairGeometry(params) {
     treadDepth,
     stringerOC,
     stringerStockWidth,
+    stringerStockThickness,
+    stringerPosition,
+    postSize,
     padAboveGrade,
   } = params;
 
@@ -23,7 +26,24 @@ export function computeStairGeometry(params) {
   const stairAngle = Math.atan(effectiveRise / totalRun) * (180 / Math.PI);
   const stringerLength = Math.sqrt(effectiveRise * effectiveRise + totalRun * totalRun);
   const stairWidth = topPostSpacing;
-  const numStringers = Math.ceil(stairWidth / stringerOC) + 1;
+
+  // Stringer positions determined by posts + max OC
+  // Outer stringers at post positions (inside or outside)
+  const st = stringerStockThickness || 1.5;
+  const ps = postSize || 3.5;
+  let outerStringerSpan;  // distance between outer stringer centers
+  if (stringerPosition === 'outside') {
+    // Outer stringers outside the posts
+    outerStringerSpan = topPostSpacing + 2 * ps + st;
+  } else {
+    // Inside posts (default): outer stringers inside the post faces
+    outerStringerSpan = topPostSpacing - st;
+  }
+
+  // Number of spans between stringers, ensuring OC ≤ stringerOC (max)
+  const numSpans = Math.ceil(outerStringerSpan / stringerOC);
+  const numStringers = numSpans + 1;
+  const actualOC = outerStringerSpan / numSpans;
 
   // Throat: perpendicular distance from notch inside corner to uncut bottom edge
   const notchDepth =
@@ -40,6 +60,8 @@ export function computeStairGeometry(params) {
     stringerLength,
     stairWidth,
     numStringers,
+    actualOC,
+    outerStringerSpan,
     throat,
     notchDepth,
   };

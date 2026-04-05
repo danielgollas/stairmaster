@@ -18,6 +18,9 @@ describe('computeStairGeometry', () => {
     sillPlateThickness: 1.5,
     padAboveGrade: 1,
     stringerStockWidth: 11.25,
+    stringerStockThickness: 1.5,
+    stringerPosition: 'inside',
+    postSize: 3.5,
   };
 
   it('computes number of risers by rounding totalHeight / target riser', () => {
@@ -60,10 +63,11 @@ describe('computeStairGeometry', () => {
     expect(result.stairWidth).toBe(36);
   });
 
-  it('computes number of stringers using fence-post math', () => {
+  it('computes number of stringers from post spacing and max OC', () => {
     const result = computeStairGeometry(base);
-    // ceil(36 / 16) + 1 = 3 + 1 = 4
+    // inside: outerSpan = 36 - 1.5 = 34.5, ceil(34.5/16) = 3 spans, 4 stringers
     expect(result.numStringers).toBe(4);
+    expect(result.actualOC).toBeCloseTo(34.5 / 3, 2);
   });
 
   it('computes throat depth to expected value', () => {

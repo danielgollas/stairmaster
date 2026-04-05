@@ -13,6 +13,7 @@
   let riserHeight = $state(DEFAULTS.riserHeight);
   let treadDepth = $state(DEFAULTS.treadDepth);
   let stringerOC = $state(DEFAULTS.stringerOC);
+  let stringerPosition = $state('inside');
   let deckingThickness = $state(DEFAULTS.deckingThickness);
   let riserBoardThickness = $state(DEFAULTS.riserBoardThickness);
   let rimJoistWidth = $state(DEFAULTS.rimJoistWidth);
@@ -53,6 +54,8 @@
     totalHeight, topPostSpacing, riserHeight, treadDepth, stringerOC,
     deckingThickness, riserBoardThickness, rimJoistWidth, sillPlateThickness,
     padAboveGrade, stringerStockWidth: MATERIALS['2x12'].width,
+    stringerStockThickness: MATERIALS['2x12'].thickness,
+    stringerPosition, postSize: MATERIALS['4x4'].actual,
   }));
 
   let stringerProfile = $derived(computeStringerProfile({
@@ -87,6 +90,9 @@
     stairAngle: geometry.stairAngle,
     stairWidth: geometry.stairWidth,
     numStringers: geometry.numStringers,
+    actualOC: geometry.actualOC,
+    outerStringerSpan: geometry.outerStringerSpan,
+    stringerPosition,
     stringerOC, deckingThickness, riserBoardThickness,
     rimJoistWidth,
     stringerStockWidth: MATERIALS['2x12'].width,
@@ -117,7 +123,7 @@
   <div class="panel left">
     <InputPanel
       bind:totalHeight bind:topPostSpacing
-      bind:riserHeight bind:treadDepth bind:stringerOC
+      bind:riserHeight bind:treadDepth bind:stringerOC bind:stringerPosition
       bind:deckingThickness bind:riserBoardThickness bind:rimJoistWidth
       bind:sillPlateThickness
       bind:padAboveGrade bind:concreteBelow bind:gravelDepth bind:padSideClearance
@@ -161,6 +167,7 @@
       totalRun={geometry.totalRun}
       stringerLength={geometry.stringerLength}
       numStringers={geometry.numStringers}
+      actualOC={geometry.actualOC}
       throat={geometry.throat}
       padWidth={padDims.padWidth}
       padDepth={padDims.padDepth}
