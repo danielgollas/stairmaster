@@ -182,14 +182,14 @@ export function buildScene(p) {
     const treadTop = p.padAboveGrade + (i + 1) * p.actualRiserHeight;
     const notchZ = treadTop - p.deckingThickness;
 
-    // Tread boards sit behind the riser board
-    const treadX = x + p.riserBoardThickness;
+    // Tread boards start flush with the riser face, covering the riser board top.
+    // No nosing — front of tread is flush with the riser face.
     const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    front.position.set(treadX + boardW / 2, p.stairWidth / 2, notchZ + p.deckingThickness / 2);
+    front.position.set(x + boardW / 2, p.stairWidth / 2, notchZ + p.deckingThickness / 2);
     treadsGroup.add(front);
 
     const back = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    back.position.set(treadX + boardW + gap + boardW / 2, p.stairWidth / 2, notchZ + p.deckingThickness / 2);
+    back.position.set(x + boardW + gap + boardW / 2, p.stairWidth / 2, notchZ + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
 
