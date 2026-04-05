@@ -176,8 +176,8 @@ module stringer(offset_y) {
 
   color(pt_lumber_color)
   translate([0, offset_y, pad_above + sill_plate_h])
-  // Rotate from XY polygon plane to XZ (standing up), then extrude along Y for thickness
-  rotate([270, 0, 0]) {
+  // Rotate from XY polygon plane to XZ (standing up): 90 around X puts Y→Z
+  rotate([90, 0, 0]) {
     linear_extrude(height = stringer_t) {
       // Build polygon clockwise: sawtooth top edge (left to right), then bottom edge (right to left)
       // All coords in installed frame: x = horizontal, y = vertical (up)
