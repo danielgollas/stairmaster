@@ -144,35 +144,45 @@ module stringer(offset_y) {
   rise = actual_riser;
   run = tread_depth;
   angle = atan(rise / run);
+  hyp = sqrt(rise * rise + run * run);
+  // Perpendicular offset for the board width (bottom edge offset from top edge)
+  bx = -stringer_w * sin(angle);  // x component of perpendicular offset
+  by = stringer_w * cos(angle);   // note: this goes "down" from top edge (negative in our coords, but we negate)
 
   color(pt_lumber_color)
   translate([0, offset_y, pad_above + sill_plate_h]) {
-    // Build stringer as 2D polygon extruded to thickness
     linear_extrude(height = stringer_t) {
-      effective_height = total_height - pad_above - sill_plate_h - decking_h;
+      // Build polygon clockwise: sawtooth top edge (left to right), then bottom edge (right to left)
+      // All coords in installed frame: x = horizontal, y = vertical (up)
 
-      points = concat(
-        // Bottom edge: two points along the uncut edge
-        [[0, -bottom_drop],
-         [total_run + stringer_w * cos(angle), effective_height - bottom_drop - stringer_w * sin(angle)]],
-
-        // Top edge going back: plumb cut at top, then sawtooth
-        [[total_run, effective_height - bottom_drop]],
-
-        // Generate notch points for each tread (top to bottom)
-        [for (i = [num_treads - 1 : -1 : 0])
+      top_points = concat(
+        // Start: seat cut at bottom-left of sawtooth
+        [[0, -bottom_drop]],
+        // Sawtooth notches going up (left to right)
+        [for (i = [0 : num_treads - 1])
           each [
-            [i * run + (i == num_treads - 1 ? run - top_tread_reduction : run), i * rise + rise - bottom_drop],
-            [i * run + (i == num_treads - 1 ? run - top_tread_reduction : run), i * rise - bottom_drop],
-            [i * run, i * rise - bottom_drop]
+            [i * run, i * rise - bottom_drop],                                                           // riser bottom (inside corner)
+            [i * run, (i + 1) * rise - bottom_drop],                                                    // riser top
+            [i * run + (i == num_treads - 1 ? run - top_tread_reduction : run), (i + 1) * rise - bottom_drop]  // tread end
           ]
         ],
-
-        // Close at the seat cut
-        [[0, -bottom_drop]]
+        // Plumb cut at top (vertical line up to where rim joist meets)
+        [[num_treads * run, num_treads * rise - bottom_drop]]
       );
 
-      polygon(points);
+      // Bottom edge: parallel to the stair slope, offset by board width perpendicular
+      // Goes from top-right back to bottom-left
+      bot_right_x = num_treads * run - stringer_w * rise / hyp;
+      bot_right_y = num_treads * rise - bottom_drop - stringer_w * run / hyp;
+      bot_left_x = 0 - stringer_w * rise / hyp;
+      bot_left_y = -bottom_drop - stringer_w * run / hyp;
+
+      bottom_points = [
+        [bot_right_x, bot_right_y],
+        [bot_left_x, bot_left_y]
+      ];
+
+      polygon(concat(top_points, bottom_points));
     }
   }
 }`;

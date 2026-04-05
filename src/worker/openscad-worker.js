@@ -13,13 +13,11 @@ self.onmessage = async function (e) {
 
   if (type === 'render') {
     try {
-      const scad = await init();
+      // Create a fresh instance for each render since callMain can only be called once
+      const scad = await createOpenSCAD({ noInitialRun: true });
       const inst = scad.getInstance();
 
-      // Write the .scad source to the virtual filesystem
       inst.FS.writeFile('/input.scad', scadSource);
-
-      // Render to STL
       inst.callMain(['/input.scad', '--enable=manifold', '-o', '/output.stl']);
       const stlData = inst.FS.readFile('/output.stl');
 
@@ -39,7 +37,7 @@ self.onmessage = async function (e) {
   }
 };
 
-// Signal ready
+// Signal ready after first init succeeds (proves WASM loads)
 init().then(() => {
   self.postMessage({ type: 'ready' });
 }).catch((err) => {
