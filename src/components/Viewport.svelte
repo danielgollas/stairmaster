@@ -2,12 +2,13 @@
   import { onMount, onDestroy } from 'svelte';
   import * as THREE from 'three';
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { buildScene } from '../lib/scene-builder.js';
 
   let { sceneParams = null, visibility = {}, viewMode = 'side' } = $props();
 
   let canvas;
   let renderer, scene, camera, controls;
-  let componentMeshes = {};  // { name: THREE.Object3D }
+  let currentMeshes = $state({});
   let hasInitialFit = false;
 
   function setupScene() {
@@ -66,54 +67,56 @@
   }
 
   function rebuildMeshes(params) {
-    // Dynamically import to avoid SSR issues
-    import('../lib/scene-builder.js').then(({ buildScene }) => {
-      // Remove old meshes
-      for (const name in componentMeshes) {
-        scene.remove(componentMeshes[name]);
-        // Dispose geometry/materials
-        componentMeshes[name].traverse((child) => {
-          if (child.geometry) child.geometry.dispose();
-          if (child.material) child.material.dispose();
-        });
-      }
-
-      // Build new meshes
-      componentMeshes = buildScene(params);
-
-      // Add to scene with current visibility
-      for (const [name, mesh] of Object.entries(componentMeshes)) {
-        mesh.visible = visibility[name] !== false;
-        scene.add(mesh);
-      }
-
-      // Auto-fit camera on first build
-      if (!hasInitialFit) {
-        hasInitialFit = true;
-        const box = new THREE.Box3();
-        for (const mesh of Object.values(componentMeshes)) {
-          if (mesh.visible) box.expandByObject(mesh);
+    // Remove old meshes
+    for (const name in currentMeshes) {
+      scene.remove(currentMeshes[name]);
+      currentMeshes[name].traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (child.material.map) child.material.map.dispose();
+          child.material.dispose();
         }
-        if (!box.isEmpty()) {
-          const center = box.getCenter(new THREE.Vector3());
+      });
+    }
+
+    // Build new meshes
+    const meshes = buildScene(params);
+
+    // Add to scene
+    for (const [name, mesh] of Object.entries(meshes)) {
+      mesh.visible = visibility[name] !== false;
+      scene.add(mesh);
+    }
+
+    // Update reactive state so visibility effect can track it
+    currentMeshes = meshes;
+
+    // Auto-fit camera on first build
+    if (!hasInitialFit) {
+      hasInitialFit = true;
+      const box = new THREE.Box3();
+      for (const mesh of Object.values(meshes)) {
+        if (mesh.visible) box.expandByObject(mesh);
+      }
+      if (!box.isEmpty()) {
+        const center = box.getCenter(new THREE.Vector3());
+        if (controls) {
+          controls.target.copy(center);
+          controls.update();
+        }
+        if (camera.isPerspectiveCamera) {
           const size = box.getSize(new THREE.Vector3());
-          if (controls) {
-            controls.target.copy(center);
-            controls.update();
-          }
-          if (camera.isPerspectiveCamera) {
-            const maxDim = Math.max(size.x, size.y, size.z);
-            camera.position.set(
-              center.x - maxDim * 0.8,
-              center.y + maxDim * 0.6,
-              center.z + maxDim * 1.2
-            );
-          }
+          const maxDim = Math.max(size.x, size.y, size.z);
+          camera.position.set(
+            center.x - maxDim * 0.8,
+            center.y + maxDim * 0.6,
+            center.z + maxDim * 1.2
+          );
         }
       }
+    }
 
-      requestRender();
-    });
+    requestRender();
   }
 
   let renderRequested = false;
@@ -171,7 +174,8 @@
   // Update visibility instantly (no rebuild)
   $effect(() => {
     const vis = visibility;
-    for (const [name, mesh] of Object.entries(componentMeshes)) {
+    const meshes = currentMeshes;
+    for (const [name, mesh] of Object.entries(meshes)) {
       mesh.visible = vis[name] !== false;
     }
     requestRender();

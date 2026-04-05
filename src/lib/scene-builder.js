@@ -117,17 +117,19 @@ export function buildScene(p) {
 
   // --- Stringers ---
   const stringerGroup = new THREE.Group();
+  // Build profile in XY (x=run, y=height), extrude along Z (=thickness)
   const stringerShape = buildStringerShape(p);
   const extrudeSettings = { depth: p.stringerStockThickness, bevelEnabled: false };
+  const stringerGeo = new THREE.ExtrudeGeometry(stringerShape, extrudeSettings);
+
+  // Transform geometry itself (not the mesh) from XY+Z to XZ+Y:
+  // We want: shape X → world X, shape Y → world Z, extrude Z → world Y
+  stringerGeo.rotateX(Math.PI / 2);
 
   for (let i = 0; i < p.numStringers; i++) {
     const y = sillY + i * p.stringerOC;
-    const geo = new THREE.ExtrudeGeometry(stringerShape, extrudeSettings);
-    // ExtrudeGeometry creates shape in XY, extrudes along Z.
-    // We need shape in XZ (x=run, z=height), extruded along Y.
-    // So rotate: swap Y→Z and Z→-Y
+    const geo = stringerGeo.clone();
     const mesh = makeMesh(geo, COLORS.stringer);
-    mesh.rotation.x = Math.PI / 2;
     mesh.position.set(0, y + p.stringerStockThickness, p.padAboveGrade + p.sillPlateThickness);
     stringerGroup.add(mesh);
   }
@@ -399,6 +401,7 @@ function buildDimensions(p) {
 /**
  * Build the stringer 2D profile as a Three.js Shape.
  * Shape is in XY plane: x = horizontal run, y = vertical rise.
+ * Counter-clockwise winding (required by Three.js for outer contour).
  */
 function buildStringerShape(p) {
   const rise = p.actualRiserHeight;
@@ -413,40 +416,55 @@ function buildStringerShape(p) {
 
   const shape = new THREE.Shape();
 
-  // Start at seat bottom-left (level cut end)
+  // Counter-clockwise: seat bottom → plumb toe up → sawtooth left-to-right →
+  // top plumb → bottom edge right-to-left → close
+
+  // Start at seat: bottom of plumb toe
   shape.moveTo(0, -pz);
 
-  // Bottom edge: left to right along slope
-  shape.lineTo(n * run - px, n * rise - drop - pz);
+  // Plumb toe up to seat surface
+  shape.lineTo(0, -drop);
+
+  // Sawtooth: left to right (bottom tread up to top tread)
+  // First tread
+  if (n >= 1) {
+    shape.lineTo(run, -drop);        // first riser bottom-right
+    shape.lineTo(run, rise - drop);  // first riser top
+  }
+
+  // Middle treads
+  for (let i = 1; i < n - 1; i++) {
+    const treadLeft = i * run;
+    const riserBottomY = i * rise - drop;
+    const treadY = (i + 1) * rise - drop;
+    shape.lineTo(treadLeft, riserBottomY);   // inside corner
+    shape.lineTo((i + 1) * run, riserBottomY);  // tread right end at riser bottom
+    shape.lineTo((i + 1) * run, treadY);        // riser top
+  }
+
+  // Top tread (shortened by riser board thickness)
+  if (n >= 2) {
+    const lastI = n - 1;
+    const lastTreadLeft = lastI * run;
+    const lastRiserBottom = lastI * rise - drop;
+    const lastTreadX = lastTreadLeft + (run - topReduce);
+    const lastTreadY = n * rise - drop;
+    shape.lineTo(lastTreadLeft, lastRiserBottom);  // inside corner
+    shape.lineTo(lastTreadX, lastRiserBottom);     // tread right
+    shape.lineTo(lastTreadX, lastTreadY);          // riser top
+  } else if (n === 1) {
+    // Only one tread — it's the top tread
+    const lastTreadX = run - topReduce;
+    shape.lineTo(lastTreadX, rise - drop);
+  }
 
   // Top plumb cut
   shape.lineTo(n * run, n * rise - drop);
 
-  // Sawtooth: top to bottom (right to left)
-  // Top tread (shortened)
-  const lastTreadX = (n - 1) * run + (run - topReduce);
-  shape.lineTo(lastTreadX, n * rise - drop);
-  shape.lineTo(lastTreadX, (n - 1) * rise - drop);
+  // Bottom edge: right to left along slope (board's uncut bottom edge)
+  shape.lineTo(n * run - px, n * rise - drop - pz);
 
-  // Middle treads
-  for (let i = n - 2; i >= 1; i--) {
-    const treadRight = (i + 1) * run;
-    const treadY = (i + 1) * rise - drop;
-    const riserBottomY = i * rise - drop;
-    shape.lineTo(treadRight, treadY);
-    shape.lineTo(treadRight, riserBottomY);
-  }
-
-  // Bottom tread
-  if (n >= 1) {
-    shape.lineTo(run, rise - drop);
-    shape.lineTo(run, -drop);
-  }
-
-  // Seat: plumb toe cut
-  shape.lineTo(0, -drop);
-
-  // Close back to start
+  // Close to start
   shape.lineTo(0, -pz);
 
   return shape;
