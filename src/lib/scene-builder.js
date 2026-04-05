@@ -131,7 +131,7 @@ export function buildScene(p) {
     const y = sillY + i * p.stringerOC;
     const geo = baseGeo.clone();
     const mesh = makeMesh(geo, COLORS.stringer);
-    // After rotateX(PI/2): Y→Z, Z→-Y. Extrusion goes -Y, so offset by +thickness.
+    // position.z = seatZ + drop puts shape seat (y=-drop) at world z = seatZ
     mesh.position.set(0, y + p.stringerStockThickness, seatZ + p.bottomDrop);
     stringerGroup.add(mesh);
   }
@@ -175,9 +175,10 @@ export function buildScene(p) {
 
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
-    // Tread sits ON the stringer notch. Notch level = padAbove + sillPlate + (i+1)*rise
-    // (the stringer shape handles bottomDrop internally)
-    const notchZ = p.padAboveGrade + p.sillPlateThickness + (i + 1) * p.actualRiserHeight;
+    // Finished tread top = padAbove + (i+1) * actualRiser
+    // Tread bottom (notch level) = treadTop - deckingThickness
+    const treadTop = p.padAboveGrade + (i + 1) * p.actualRiserHeight;
+    const notchZ = treadTop - p.deckingThickness;
 
     // Tread boards sit behind the riser board
     const treadX = x + p.riserBoardThickness;
@@ -197,14 +198,15 @@ export function buildScene(p) {
 
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
-    // Riser sits against the stringer's vertical notch face.
-    // Notch bottom = padAbove + sillPlate + i*rise
-    // Notch top = padAbove + sillPlate + (i+1)*rise
-    const notchBottom = p.padAboveGrade + p.sillPlateThickness + i * p.actualRiserHeight;
-    const riserH = p.actualRiserHeight;
+    // Riser goes from the walking surface below to the walking surface above.
+    // Bottom = padAbove + i * rise (pad surface for i=0, tread top for i>0)
+    // Top = padAbove + (i+1) * rise (next tread top)
+    const riserBottom = p.padAboveGrade + i * p.actualRiserHeight;
+    const riserTop = p.padAboveGrade + (i + 1) * p.actualRiserHeight;
+    const riserH = riserTop - riserBottom;  // = actualRiserHeight
 
     const riser = makeMesh(box(p.riserBoardThickness, p.stairWidth, riserH), COLORS.riser);
-    riser.position.set(x + p.riserBoardThickness / 2, p.stairWidth / 2, notchBottom + riserH / 2);
+    riser.position.set(x + p.riserBoardThickness / 2, p.stairWidth / 2, riserBottom + riserH / 2);
     risersGroup.add(riser);
   }
 
@@ -350,21 +352,11 @@ function buildDimensions(p) {
   ));
 
   // Per-riser height labels (finished surface to surface)
+  // All risers = actualRiserHeight. Walking surfaces at padAbove + i*rise.
   const riserDimX = -6;
-  const padSurface = p.padAboveGrade;
-  const base = p.padAboveGrade + p.sillPlateThickness;
   for (let i = 0; i < p.numRisers; i++) {
-    let zFrom, zTo;
-    if (i === 0) {
-      zFrom = padSurface;
-      zTo = base + p.actualRiserHeight + p.deckingThickness;
-    } else if (i < p.numTreads) {
-      zFrom = base + i * p.actualRiserHeight + p.deckingThickness;
-      zTo = base + (i + 1) * p.actualRiserHeight + p.deckingThickness;
-    } else {
-      zFrom = base + p.numTreads * p.actualRiserHeight + p.deckingThickness;
-      zTo = p.totalHeight;
-    }
+    const zFrom = p.padAboveGrade + i * p.actualRiserHeight;
+    const zTo = p.padAboveGrade + (i + 1) * p.actualRiserHeight;
     const label = `${(zTo - zFrom).toFixed(2)}" R${i + 1}`;
     group.add(makeDimLine(
       [riserDimX, dimY, zFrom],
