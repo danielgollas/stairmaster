@@ -85,18 +85,25 @@ export function buildScene(p) {
   meshes.concretePad = padGroup;
 
   // --- Sill plate ---
-  // Sill plate needs to be deep enough to support the full stringer seat + first tread
   const sillY = (p.stairWidth - p.topPostSpacing) / 2;
-  const sillDepth = p.treadDepth;  // fits fully on the concrete pad
-  const sillMesh = makeMesh(box(sillDepth, p.topPostSpacing, p.sillPlateThickness), COLORS.sillPlate);
-  sillMesh.position.set(padShift + sillDepth / 2, sillY + p.topPostSpacing / 2, p.padAboveGrade + p.sillPlateThickness / 2);
+  const ps = p.postSize;
+
+  // Effective Y range for components that adapt to stringer position
+  const firstStringerY = (p.stringerPosition === 'outside')
+    ? sillY - ps - p.stringerStockThickness
+    : sillY;
+  const compStartY = firstStringerY;  // left edge of first outer stringer
+  const compWidth = p.effectiveWidth;  // outer face to outer face
+  const compCenterY = compStartY + compWidth / 2;
+  const sillDepth = p.treadDepth;
+  const sillMesh = makeMesh(box(sillDepth, compWidth, p.sillPlateThickness), COLORS.sillPlate);
+  sillMesh.position.set(padShift + sillDepth / 2, compCenterY, p.padAboveGrade + p.sillPlateThickness / 2);
   meshes.sillPlate = sillMesh;
 
   // --- Bottom posts ---
   const postGroup = new THREE.Group();
   const postBaseZ = p.padAboveGrade;
   const postH = p.postHeight;
-  const ps = p.postSize;
   const leftPostY = sillY - ps;
   const rightPostY = sillY + p.topPostSpacing;
 
@@ -138,11 +145,6 @@ export function buildScene(p) {
   baseGeo.rotateX(Math.PI / 2);
 
   const seatZ = p.padAboveGrade + p.sillPlateThickness;
-
-  // Stringer Y positions based on post positions
-  const firstStringerY = (p.stringerPosition === 'outside')
-    ? sillY - ps - p.stringerStockThickness
-    : sillY;
 
   for (let i = 0; i < p.numStringers; i++) {
     const y = firstStringerY + i * p.actualOC;
@@ -212,12 +214,12 @@ export function buildScene(p) {
       ? rimFace - (boardW + gap + boardW)
       : x - p.riserBoardThickness;
 
-    const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    front.position.set(treadStart + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
+    const front = makeMesh(box(boardW, compWidth, p.deckingThickness), COLORS.decking);
+    front.position.set(treadStart + boardW / 2, compCenterY, nz + p.deckingThickness / 2);
     treadsGroup.add(front);
 
-    const back = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    back.position.set(treadStart + boardW + gap + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
+    const back = makeMesh(box(boardW, compWidth, p.deckingThickness), COLORS.decking);
+    back.position.set(treadStart + boardW + gap + boardW / 2, compCenterY, nz + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
 
@@ -238,14 +240,14 @@ export function buildScene(p) {
 
     // Single board spans full stair width
     // Bottom piece: full 2x6 (5.5")
-    const fullBoard = makeMesh(box(p.riserBoardThickness, p.stairWidth, Math.min(fullBoardH, riserH)), COLORS.riser);
-    fullBoard.position.set(riserX + p.riserBoardThickness / 2, p.stairWidth / 2, riserBottom + Math.min(fullBoardH, riserH) / 2);
+    const fullBoard = makeMesh(box(p.riserBoardThickness, compWidth, Math.min(fullBoardH, riserH)), COLORS.riser);
+    fullBoard.position.set(riserX + p.riserBoardThickness / 2, compCenterY, riserBottom + Math.min(fullBoardH, riserH) / 2);
     risersGroup.add(fullBoard);
 
     // Top piece: ripped 2x6 to fill remaining height
     if (ripH > 0.01) {
-      const ripBoard = makeMesh(box(p.riserBoardThickness, p.stairWidth, ripH), COLORS.riserRip);
-      ripBoard.position.set(riserX + p.riserBoardThickness / 2, p.stairWidth / 2, riserBottom + fullBoardH + ripH / 2);
+      const ripBoard = makeMesh(box(p.riserBoardThickness, compWidth, ripH), COLORS.riserRip);
+      ripBoard.position.set(riserX + p.riserBoardThickness / 2, compCenterY, riserBottom + fullBoardH + ripH / 2);
       risersGroup.add(ripBoard);
     }
   }
@@ -267,8 +269,8 @@ export function buildScene(p) {
   // --- Rim joist ---
   // Rim joist sits under the deck. Back face at totalRun, front face at totalRun - 1.5.
   const rimX = p.totalRun - 1.5;  // rim joist front face
-  const rimMesh = makeMesh(box(1.5, p.stairWidth, p.rimJoistWidth), COLORS.rimJoist);
-  rimMesh.position.set(rimX + 0.75, p.stairWidth / 2, p.totalHeight - p.deckingThickness - p.rimJoistWidth / 2);
+  const rimMesh = makeMesh(box(1.5, compWidth, p.rimJoistWidth), COLORS.rimJoist);
+  rimMesh.position.set(rimX + 0.75, compCenterY, p.totalHeight - p.deckingThickness - p.rimJoistWidth / 2);
   meshes.rimJoist = rimMesh;
 
   // --- Deck surface ---

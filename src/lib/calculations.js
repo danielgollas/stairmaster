@@ -62,6 +62,8 @@ export function computeStairGeometry(params) {
     numStringers,
     actualOC,
     outerStringerSpan,
+    // Effective width for treads/risers/sill/rim (outer stringer face to outer stringer face)
+    effectiveWidth: outerStringerSpan + (stringerStockThickness || 1.5),
     throat,
     notchDepth,
   };

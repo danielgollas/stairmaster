@@ -95,6 +95,7 @@
     numStringers: geometry.numStringers,
     actualOC: geometry.actualOC,
     outerStringerSpan: geometry.outerStringerSpan,
+    effectiveWidth: geometry.effectiveWidth,
     stringerPosition,
     stringerOC, deckingThickness, riserBoardThickness,
     rimJoistWidth,
