@@ -123,7 +123,7 @@ export function buildScene(p) {
   // Shape in XY extruded along +Z. We need: X→X(run), Y→Z(height), Z→Y(width)
   // rotateX(-PI/2): Y→-Z, Z→Y. So shape Y goes DOWN (wrong).
   // rotateX(PI/2): Y→Z, Z→-Y. Shape Y goes UP (correct), extrusion goes -Y.
-  baseGeo.rotateX(-Math.PI / 2);
+  baseGeo.rotateX(Math.PI / 2);
 
   const seatZ = p.padAboveGrade + p.sillPlateThickness;
 
@@ -131,8 +131,8 @@ export function buildScene(p) {
     const y = sillY + i * p.stringerOC;
     const geo = baseGeo.clone();
     const mesh = makeMesh(geo, COLORS.stringer);
-    // After rotateX(-PI/2): Y→Z, Z→+Y. Extrusion goes +Y from origin.
-    mesh.position.set(0, y, seatZ + p.bottomDrop);
+    // After rotateX(PI/2): Y→Z, Z→-Y. Extrusion goes -Y, so offset by +thickness.
+    mesh.position.set(0, y + p.stringerStockThickness, seatZ + p.bottomDrop);
     stringerGroup.add(mesh);
   }
 
@@ -415,43 +415,43 @@ function buildStringerShape(p) {
   const sw = p.stringerStockWidth;
   const topReduce = p.topTreadReduction;
 
-  // Board bottom edge: parallel to slope, offset down by board width
-  // perpendicular to the slope direction
+  // Board bottom edge: parallel to the stair slope, offset perpendicular by board width.
+  // The slope line passes through the notch inside corners with slope rise/run.
+  // Perpendicular offset: dx = -sw*rise/hyp, dy = -sw*run/hyp
   const hyp = Math.sqrt(rise * rise + run * run);
-  const offX = sw * rise / hyp;  // perpendicular offset x-component
-  const offY = sw * run / hyp;   // perpendicular offset y-component
+  const offX = sw * rise / hyp;
+  const offY = sw * run / hyp;
 
-  // Stringer top-right: at the plumb cut
-  const topX = n * run;
-  const topY = n * rise - drop;
+  const topX = n * run;    // x at top plumb cut (rim joist face)
+  const topY = n * rise - drop;  // y at top of sawtooth
 
-  // Build points (CCW in XY). After rotateX(PI/2): shape Y → world Z (up).
-  // Sawtooth at high Y = top of stringer. Board bottom at low Y = bottom.
+  // Board bottom edge: line through (-offX, -drop-offY) with slope rise/run.
+  // Compute where it intersects x=0 (seat plumb toe) and x=topX (top plumb cut).
+  const slopeRatio = rise / run;
+  const botAtSeat = (-drop - offY) + offX * slopeRatio;   // y at x=0
+  const botAtTop = botAtSeat + topX * slopeRatio;          // y at x=topX
+
+  // Build points (CW = clockwise, which Three.js treats as CCW after rotateX(-PI/2))
   const pts = [];
 
-  // --- Board bottom edge, left to right ---
-  pts.push([0, -offY]);                     // board bottom at seat end
-  pts.push([topX - offX, topY - offY]);      // board bottom at top end
+  // Seat: plumb toe (vertical at x=0)
+  pts.push([0, botAtSeat]);     // board bottom at seat (plumb toe bottom)
+  pts.push([0, -drop]);         // plumb toe top = seat bearing surface
 
-  // --- Top plumb cut ---
-  pts.push([topX, topY]);
-
-  // --- Sawtooth, right to left (descending) ---
-  for (let i = n - 1; i >= 0; i--) {
+  // Sawtooth: left to right (ascending)
+  for (let i = 0; i < n; i++) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
     const td = (i === n - 1) ? run - topReduce : run;
-
+    pts.push([riserX, treadY]);              // riser top
     pts.push([riserX + td, treadY]);         // tread right end
-    pts.push([riserX, treadY]);              // riser top (inside corner)
-    if (i > 0) {
-      pts.push([riserX, i * rise - drop]);   // riser bottom
-    }
   }
 
-  // --- Seat ---
-  pts.push([0, -drop]);                      // seat level
-  // Auto-close back to pts[0] = board bottom at seat end
+  // Top plumb cut (vertical at x=topX)
+  pts.push([topX, topY]);       // top of plumb cut (= last sawtooth level)
+  pts.push([topX, botAtTop]);   // bottom of plumb cut (meets board bottom edge)
+
+  // Auto-close: from (topX, botAtTop) back to (0, botAtSeat) = board bottom edge
 
   // Create shape
   const shape = new THREE.Shape();
