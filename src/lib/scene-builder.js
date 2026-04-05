@@ -385,9 +385,12 @@ function buildDimensions(p) {
   // Per-tread horizontal measurements (riser outer face to riser outer face)
   for (let i = 0; i < p.numTreads; i++) {
     const xFrom = i * p.treadDepth;
-    const xTo = (i + 1) * p.treadDepth;
-    const z = p.padAboveGrade + (i + 1) * p.actualRiserHeight + 2;  // slightly above tread
-    const label = `${p.treadDepth}" T${i + 1}`;
+    // Top tread is shorter — butts against rim joist (final riser)
+    const isTopTread = (i === p.numTreads - 1);
+    const td = isTopTread ? p.treadDepth - p.riserBoardThickness : p.treadDepth;
+    const xTo = xFrom + td;
+    const z = p.padAboveGrade + (i + 1) * p.actualRiserHeight + 2;
+    const label = `${td}" T${i + 1}`;
     group.add(makeDimLine(
       [xFrom, dimY, z],
       [xTo, dimY, z],
