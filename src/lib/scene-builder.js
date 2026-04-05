@@ -440,9 +440,13 @@ function buildStringerShape(p) {
 
   const pts = [];
 
-  // 1. Seat cut with short plumb toe
-  pts.push([-seatLen, -drop - toeDepth]);   // plumb toe bottom
-  pts.push([-seatLen, -drop]);               // plumb toe top
+  // 1. Seat cut with short plumb toe (horizontal bottom)
+  // Where does the board bottom edge reach y = -drop - toeDepth?
+  const toeBottomY = -drop - toeDepth;
+  const toeBottomX = (toeBottomY - botAtSeat) / slopeRatio;  // x where bottom edge hits toe level
+  pts.push([toeBottomX, toeBottomY]);        // board bottom at toe level
+  pts.push([-seatLen, toeBottomY]);           // toe bottom horizontal (parallel to sill)
+  pts.push([-seatLen, -drop]);               // plumb toe vertical up to seat
   pts.push([0, -drop]);                      // seat right → first riser
 
   // 2. Sawtooth: left to right (ascending)
@@ -458,9 +462,7 @@ function buildStringerShape(p) {
   pts.push([topX, topY]);       // top of plumb cut
   pts.push([topX, botAtTop]);   // bottom of plumb cut
 
-  // 4. Board bottom edge back to toe
-  //    From (topX, botAtTop) to (-seatLen, -drop-toeDepth)
-  //    This is the auto-close line = the uncut bottom edge of the board
+  // Auto-close: (topX, botAtTop) → (toeBottomX, toeBottomY) = board bottom edge
 
   // Create shape
   const shape = new THREE.Shape();
