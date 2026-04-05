@@ -66,15 +66,19 @@ export function buildScene(p) {
   // Pad shifted left by rb so bottom riser board sits on sill plate
   const padShift = -p.riserBoardThickness;
 
+  // Pad shifted left by half its depth so front half is the ground-level "tread"
+  // Center x = padShift - padDepth/2 (left half extends forward as landing)
+  const padCenterX = padShift;
+
   // Gravel
   const gravelMesh = makeMesh(box(p.padDepth, p.padWidth, p.gravelDepth), COLORS.gravel);
-  gravelMesh.position.set(padShift + p.padDepth / 2, padCenterY, -(p.concreteBelow + p.gravelDepth / 2));
+  gravelMesh.position.set(padCenterX, padCenterY, -(p.concreteBelow + p.gravelDepth / 2));
   padGroup.add(gravelMesh);
 
   // Concrete
   const concreteH = p.concreteBelow + p.padAboveGrade;
   const concreteMesh = makeMesh(box(p.padDepth, p.padWidth, concreteH), COLORS.concrete);
-  concreteMesh.position.set(padShift + p.padDepth / 2, padCenterY, -p.concreteBelow + concreteH / 2);
+  concreteMesh.position.set(padCenterX, padCenterY, -p.concreteBelow + concreteH / 2);
   padGroup.add(concreteMesh);
 
   meshes.concretePad = padGroup;
