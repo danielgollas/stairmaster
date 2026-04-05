@@ -349,13 +349,18 @@ describe('computeStairGeometry', () => {
     expect(result.numStringers).toBe(4);
   });
 
-  it('computes throat depth', () => {
+  it('computes throat depth to expected value', () => {
     const result = computeStairGeometry(base);
-    // throat = board width - sqrt(rise^2 + run^2) * (rise * run) / (rise^2 + run^2)
-    // Simpler: throat = boardWidth - notchDepth where notchDepth is the perpendicular
-    // distance from the notch corner to the board edge
-    expect(result.throat).toBeGreaterThan(0);
-    expect(result.throat).toBeLessThan(11.25);
+    // With 13 risers: actualRiser = 96/13 ≈ 7.3846"
+    // notchDepth = (rise * run) / sqrt(rise^2 + run^2)
+    //            = (7.3846 * 11.125) / sqrt(7.3846^2 + 11.125^2)
+    //            ≈ 82.155 / 13.352 ≈ 6.153
+    // throat = 11.25 - 6.153 ≈ 5.097
+    const rise = 96 / 13;
+    const run = 11.125;
+    const expectedNotchDepth = (rise * run) / Math.sqrt(rise * rise + run * run);
+    const expectedThroat = 11.25 - expectedNotchDepth;
+    expect(result.throat).toBeCloseTo(expectedThroat, 3);
   });
 
   it('handles exact division of totalHeight by riserHeight', () => {
@@ -423,8 +428,8 @@ describe('computeStringerProfile', () => {
     // Should have the right number of notch points
     // Each notch has a tread cut and riser cut forming a right angle
     expect(profile.notches).toHaveLength(3);
-    // Bottom drop should account for tread thickness
-    expect(profile.bottomDrop).toBe(1.5);
+    // Bottom drop = deckingThickness + sillPlateThickness - padAboveGrade = 1.5 + 1.5 - 1 = 2.0
+    expect(profile.bottomDrop).toBe(2.0);
     // Top tread shortened by riser board thickness
     expect(profile.topTreadReduction).toBe(1.5);
   });
@@ -531,9 +536,11 @@ export function computeStringerProfile(params) {
     stringerStockWidth,
   } = params;
 
-  // Bottom drop: the stringer is shortened at the bottom by tread thickness
-  // so the first finished riser equals all others
-  const bottomDrop = deckingThickness;
+  // Bottom drop: the stringer is shortened so the first finished riser
+  // (pad surface → first tread decking) equals all other risers.
+  // The sill plate raises the stringer; padAboveGrade raises the pad surface.
+  // bottomDrop = deckingThickness + sillPlateThickness - padAboveGrade
+  const bottomDrop = deckingThickness + sillPlateThickness - padAboveGrade;
 
   // Top tread cut is shortened by riser board thickness
   // (riser board sits against rim joist face)
@@ -1232,23 +1239,13 @@ self.onmessage = async function (e) {
       inst.callMain(['/input.scad', '--enable=manifold', '-o', '/output.stl']);
       const stlData = inst.FS.readFile('/output.stl');
 
-      // Render to SVG (2D projection — side view)
-      // We generate a separate .scad that wraps in projection()
-      const projSource = `projection(cut = false) import("/output.stl");`;
-      inst.FS.writeFile('/proj.scad', projSource);
-      inst.callMain(['/proj.scad', '-o', '/output.svg']);
-      let svgData;
-      try {
-        svgData = new TextDecoder().decode(inst.FS.readFile('/output.svg'));
-      } catch {
-        svgData = null;
-      }
+      // 2D views (side/front) are handled by Three.js orthographic camera,
+      // not separate SVG projection. This avoids doubling WASM render time.
 
       self.postMessage({
         type: 'result',
         id,
         stl: stlData.buffer,
-        svg: svgData,
       }, [stlData.buffer]);
 
     } catch (err) {
@@ -1512,6 +1509,9 @@ Create `src/components/InputPanel.svelte`:
     concreteBelow = $bindable(),
     gravelDepth = $bindable(),
     padSideClearance = $bindable(),
+    postBase = $bindable(),
+    tensionTie = $bindable(),
+    stringerHanger = $bindable(),
   } = $props();
 
   let sections = $state({
@@ -1519,6 +1519,7 @@ Create `src/components/InputPanel.svelte`:
     geometry: true,
     materials: false,
     pad: false,
+    hardware: false,
   });
 
   function toggle(section) {
@@ -1619,6 +1620,27 @@ Create `src/components/InputPanel.svelte`:
       </label>
     </div>
   {/if}
+
+  <!-- Hardware -->
+  <button class="section-header" onclick={() => toggle('hardware')}>
+    <span>{sections.hardware ? '▾' : '▸'}</span> Hardware
+  </button>
+  {#if sections.hardware}
+    <div class="section-body">
+      <label>
+        <span>Post base</span>
+        <input type="text" bind:value={postBase} />
+      </label>
+      <label>
+        <span>Tension tie</span>
+        <input type="text" bind:value={tensionTie} />
+      </label>
+      <label>
+        <span>Stringer hanger</span>
+        <input type="text" bind:value={stringerHanger} />
+      </label>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -1662,7 +1684,7 @@ Create `src/components/InputPanel.svelte`:
     font-size: 0.85em;
     color: #cbd5e1;
   }
-  input[type="number"] {
+  input[type="number"], input[type="text"] {
     width: 80px;
     padding: 4px 8px;
     background: #0f172a;
@@ -1671,6 +1693,10 @@ Create `src/components/InputPanel.svelte`:
     color: #fbbf24;
     text-align: right;
     font-family: monospace;
+  }
+  input[type="text"] {
+    width: 140px;
+    text-align: left;
   }
   .toggle-group {
     display: flex;
@@ -1920,6 +1946,10 @@ Replace `src/App.svelte` with:
   let gravelDepth = $state(DEFAULTS.gravelDepth);
   let padSideClearance = $state(DEFAULTS.padSideClearance);
 
+  let postBase = $state(DEFAULTS.postBase);
+  let tensionTie = $state(DEFAULTS.tensionTie);
+  let stringerHanger = $state(DEFAULTS.stringerHanger);
+
   let viewMode = $state('3d');
   let stlData = $state(null);
   let workerReady = $state(false);
@@ -2029,6 +2059,17 @@ Replace `src/App.svelte` with:
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  function downloadStl() {
+    if (!stlData) return;
+    const blob = new Blob([stlData], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'stairmaster.stl';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 <div class="app">
@@ -2039,6 +2080,7 @@ Replace `src/App.svelte` with:
       bind:deckingThickness bind:riserBoardThickness bind:rimJoistWidth
       bind:sillPlateThickness
       bind:padAboveGrade bind:concreteBelow bind:gravelDepth bind:padSideClearance
+      bind:postBase bind:tensionTie bind:stringerHanger
     />
   </div>
 
@@ -2051,6 +2093,7 @@ Replace `src/App.svelte` with:
       </div>
       <div class="downloads">
         <button onclick={downloadScad}>⬇ .scad</button>
+        <button onclick={downloadStl} disabled={!stlData}>⬇ .stl</button>
       </div>
       {#if rendering}
         <span class="rendering">Rendering...</span>
@@ -2077,9 +2120,9 @@ Replace `src/App.svelte` with:
       concreteThickness={padDims.concreteThickness}
       excavationDepth={padDims.excavationDepth}
       {warnings}
-      postBase={DEFAULTS.postBase}
-      tensionTie={DEFAULTS.tensionTie}
-      stringerHanger={DEFAULTS.stringerHanger}
+      {postBase}
+      {tensionTie}
+      {stringerHanger}
     />
   </div>
 </div>
