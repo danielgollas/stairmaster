@@ -203,8 +203,7 @@ export function buildScene(p) {
   // --- Risers ---
   const risersGroup = new THREE.Group();
 
-  // numTreads-1 riser boards — the last step uses the rim joist as its riser
-  for (let i = 0; i < p.numTreads - 1; i++) {
+  for (let i = 0; i < p.numTreads; i++) {
     // Riser sits ON the stringer tread of the step below, butting against
     // the tread boards on its own step. Positioned one riserBoardThickness
     // forward so its back face meets the tread board front edge.
@@ -478,8 +477,8 @@ function buildStringerShape(p) {
   for (let i = 0; i < n; i++) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
-    // All treads shortened by rb for the riser board space.
-    const td = run - rb;
+    // All treads shortened by rb. Top tread extra rb shorter (rim joist = final riser).
+    const td = (i === n - 1) ? run - rb - rb : run - rb;
     pts.push([riserX, treadY]);              // riser top (vertical face)
     pts.push([riserX + td, treadY]);         // tread right end (shortened)
     // Fill the rb gap to the next riser face (stringer material remains here
