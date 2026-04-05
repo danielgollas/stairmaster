@@ -8,7 +8,7 @@
   import OutputPanel from './components/OutputPanel.svelte';
 
   // Reactive input state
-  let totalHeight = $state(96);
+  let totalHeight = $state(35);
   let topPostSpacing = $state(36);
   let riserHeight = $state(DEFAULTS.riserHeight);
   let treadDepth = $state(DEFAULTS.treadDepth);
