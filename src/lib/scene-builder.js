@@ -234,7 +234,166 @@ export function buildScene(p) {
 
   meshes.topPosts = topPostsGroup;
 
+  // --- Dimensions ---
+  meshes.dimensions = buildDimensions(p);
+
   return meshes;
+}
+
+/**
+ * Create a text sprite for dimension labels.
+ */
+function makeTextSprite(text, color = '#ffffff', fontSize = 48) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = `bold ${fontSize}px monospace`;
+  const metrics = ctx.measureText(text);
+  const w = metrics.width + 16;
+  const h = fontSize + 12;
+  canvas.width = w;
+  canvas.height = h;
+
+  ctx.font = `bold ${fontSize}px monospace`;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = color;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, w / 2, h / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  // Scale sprite to reasonable world-space size
+  const scale = Math.max(3, text.length * 0.8);
+  sprite.scale.set(scale, scale * (h / w), 1);
+  return sprite;
+}
+
+/**
+ * Create a dimension line between two 3D points with end ticks and a label.
+ */
+function makeDimLine(from, to, label, color = 0x60a5fa, offset = null) {
+  const group = new THREE.Group();
+  const mat = new THREE.LineBasicMaterial({ color, depthTest: false });
+
+  // Main line
+  const pts = [new THREE.Vector3(...from), new THREE.Vector3(...to)];
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+  group.add(new THREE.Line(lineGeo, mat));
+
+  // End ticks (small perpendicular lines)
+  const dir = new THREE.Vector3().subVectors(pts[1], pts[0]).normalize();
+  const tickLen = 1.0;
+  // Find a perpendicular direction
+  const up = new THREE.Vector3(0, 0, 1);
+  let perp = new THREE.Vector3().crossVectors(dir, up);
+  if (perp.length() < 0.01) {
+    perp = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0));
+  }
+  perp.normalize().multiplyScalar(tickLen);
+
+  for (const pt of pts) {
+    const tickPts = [
+      pt.clone().add(perp),
+      pt.clone().sub(perp),
+    ];
+    const tickGeo = new THREE.BufferGeometry().setFromPoints(tickPts);
+    group.add(new THREE.Line(tickGeo, mat));
+  }
+
+  // Label at midpoint
+  const mid = new THREE.Vector3().addVectors(pts[0], pts[1]).multiplyScalar(0.5);
+  if (offset) mid.add(new THREE.Vector3(...offset));
+  const sprite = makeTextSprite(label, '#60a5fa');
+  sprite.position.copy(mid);
+  group.add(sprite);
+
+  return group;
+}
+
+/**
+ * Build all dimension annotations.
+ */
+function buildDimensions(p) {
+  const group = new THREE.Group();
+  const sillY = (p.stairWidth - p.topPostSpacing) / 2;
+  const dimY = -8; // offset to side so dims don't overlap geometry
+
+  // Total height: grade to deck top
+  group.add(makeDimLine(
+    [p.totalRun + 8, dimY, 0],
+    [p.totalRun + 8, dimY, p.totalHeight],
+    `${p.totalHeight.toFixed(1)}"`,
+    0xf472b6
+  ));
+
+  // Total run
+  group.add(makeDimLine(
+    [0, dimY, -4],
+    [p.totalRun, dimY, -4],
+    `${p.totalRun.toFixed(1)}" run`,
+    0x60a5fa
+  ));
+
+  // A single riser height (on the second step for visibility)
+  if (p.numTreads >= 2) {
+    const riserX = p.treadDepth + 2;
+    const z1 = p.padAboveGrade + p.sillPlateThickness + p.actualRiserHeight - p.bottomDrop;
+    const z2 = z1 + p.actualRiserHeight;
+    group.add(makeDimLine(
+      [riserX, dimY, z1 + p.deckingThickness],
+      [riserX, dimY, z2 + p.deckingThickness],
+      `${p.actualRiserHeight.toFixed(2)}" riser`,
+      0x34d399
+    ));
+  }
+
+  // A single tread depth (on the second step)
+  if (p.numTreads >= 2) {
+    const z = p.padAboveGrade + p.sillPlateThickness + 2 * p.actualRiserHeight - p.bottomDrop + p.deckingThickness + 2;
+    group.add(makeDimLine(
+      [p.treadDepth, dimY, z],
+      [2 * p.treadDepth, dimY, z],
+      `${p.treadDepth}" tread`,
+      0x34d399
+    ));
+  }
+
+  // Stair angle
+  const angleLabel = `${p.stairAngle.toFixed(1)}°`;
+  const angleSprite = makeTextSprite(angleLabel, '#fbbf24');
+  angleSprite.position.set(p.totalRun * 0.15, dimY, p.totalHeight * 0.08);
+  group.add(angleSprite);
+
+  // Pad width
+  const padCenterX = p.padDepth / 2;
+  const padZ = -p.concreteBelow - p.gravelDepth - 3;
+  group.add(makeDimLine(
+    [padCenterX, sillY - p.padSideClearance, padZ],
+    [padCenterX, sillY + p.topPostSpacing + p.padSideClearance, padZ],
+    `${p.padWidth.toFixed(1)}" W`,
+    0x94a3b8
+  ));
+
+  // Pad depth
+  group.add(makeDimLine(
+    [0, sillY + p.topPostSpacing + p.padSideClearance + 3, padZ],
+    [p.padDepth, sillY + p.topPostSpacing + p.padSideClearance + 3, padZ],
+    `${p.padDepth.toFixed(1)}" D`,
+    0x94a3b8
+  ));
+
+  // Stair width
+  group.add(makeDimLine(
+    [p.totalRun / 2, sillY, p.totalHeight + 5],
+    [p.totalRun / 2, sillY + p.topPostSpacing, p.totalHeight + 5],
+    `${p.stairWidth}" width`,
+    0xfbbf24
+  ));
+
+  return group;
 }
 
 /**

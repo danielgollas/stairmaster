@@ -35,6 +35,7 @@
     blocking: true, tensionTies: true, treads: true,
     risers: true, stringerHangers: true, rimJoist: true,
     deckSurface: true, topPosts: true,
+    dimensions: true,
   });
 
   // Computed geometry
