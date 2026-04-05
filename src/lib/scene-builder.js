@@ -189,8 +189,7 @@ export function buildScene(p) {
     // Tread boards overhang the front by rb to cover the riser below.
     // Top tread: back butts against rim joist at totalRun.
     const isTopTread = (i === p.numTreads - 1);
-    const topTdCalc = p.treadDepth - 2 * p.riserBoardThickness;
-    const rimFace = (p.numTreads - 1) * p.treadDepth + topTdCalc + p.riserBoardThickness;
+    const rimFace = p.totalRun - 1.5;  // rim joist front face
     const treadStart = isTopTread
       ? rimFace - (boardW + gap + boardW)
       : x - p.riserBoardThickness;
@@ -243,16 +242,15 @@ export function buildScene(p) {
   meshes.stringerHangers = hangersGroup;
 
   // --- Rim joist ---
-  // Rim joist face aligns with stringer plumb cut
-  const topTdScene = p.treadDepth - 2 * p.riserBoardThickness;
-  const rimX = (p.numTreads - 1) * p.treadDepth + topTdScene + p.riserBoardThickness;
+  // Rim joist sits under the deck. Back face at totalRun, front face at totalRun - 1.5.
+  const rimX = p.totalRun - 1.5;  // rim joist front face
   const rimMesh = makeMesh(box(1.5, p.stairWidth, p.rimJoistWidth), COLORS.rimJoist);
   rimMesh.position.set(rimX + 0.75, p.stairWidth / 2, p.totalHeight - p.deckingThickness - p.rimJoistWidth / 2);
   meshes.rimJoist = rimMesh;
 
   // --- Deck surface ---
   const deckMesh = makeMesh(box(24, p.stairWidth + 12, p.deckingThickness), COLORS.decking);
-  deckMesh.position.set(rimX + 1.5 + 12, p.stairWidth / 2, p.totalHeight - p.deckingThickness / 2);
+  deckMesh.position.set(p.totalRun + 12, p.stairWidth / 2, p.totalHeight - p.deckingThickness / 2);
   meshes.deckSurface = deckMesh;
 
   // --- Top posts ---
@@ -260,11 +258,11 @@ export function buildScene(p) {
   const topPostZ = p.totalHeight - p.deckingThickness;
 
   const tlPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  tlPost.position.set(rimX + 1.5 + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
+  tlPost.position.set(p.totalRun + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
   topPostsGroup.add(tlPost);
 
   const trPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  trPost.position.set(rimX + 1.5 + ps / 2, sillY + p.topPostSpacing + ps / 2, topPostZ + postH / 2);
+  trPost.position.set(p.totalRun + ps / 2, sillY + p.topPostSpacing + ps / 2, topPostZ + postH / 2);
   topPostsGroup.add(trPost);
 
   meshes.topPosts = topPostsGroup;
