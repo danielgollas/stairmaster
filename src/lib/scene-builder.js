@@ -63,15 +63,18 @@ export function buildScene(p) {
   const padGroup = new THREE.Group();
   const padCenterY = p.stairWidth / 2;
 
+  // Pad shifted left by rb so bottom riser board sits on sill plate
+  const padShift = -p.riserBoardThickness;
+
   // Gravel
   const gravelMesh = makeMesh(box(p.padDepth, p.padWidth, p.gravelDepth), COLORS.gravel);
-  gravelMesh.position.set(p.padDepth / 2, padCenterY, -(p.concreteBelow + p.gravelDepth / 2));
+  gravelMesh.position.set(padShift + p.padDepth / 2, padCenterY, -(p.concreteBelow + p.gravelDepth / 2));
   padGroup.add(gravelMesh);
 
   // Concrete
   const concreteH = p.concreteBelow + p.padAboveGrade;
   const concreteMesh = makeMesh(box(p.padDepth, p.padWidth, concreteH), COLORS.concrete);
-  concreteMesh.position.set(p.padDepth / 2, padCenterY, -p.concreteBelow + concreteH / 2);
+  concreteMesh.position.set(padShift + p.padDepth / 2, padCenterY, -p.concreteBelow + concreteH / 2);
   padGroup.add(concreteMesh);
 
   meshes.concretePad = padGroup;
@@ -79,7 +82,7 @@ export function buildScene(p) {
   // --- Sill plate ---
   const sillY = (p.stairWidth - p.topPostSpacing) / 2;
   const sillMesh = makeMesh(box(p.treadDepth, p.topPostSpacing, p.sillPlateThickness), COLORS.sillPlate);
-  sillMesh.position.set(p.treadDepth / 2, sillY + p.topPostSpacing / 2, p.padAboveGrade + p.sillPlateThickness / 2);
+  sillMesh.position.set(padShift + p.treadDepth / 2, sillY + p.topPostSpacing / 2, p.padAboveGrade + p.sillPlateThickness / 2);
   meshes.sillPlate = sillMesh;
 
   // --- Bottom posts ---
@@ -91,11 +94,11 @@ export function buildScene(p) {
   const rightPostY = sillY + p.topPostSpacing;
 
   const lPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  lPost.position.set(-ps / 2, leftPostY + ps / 2, postBaseZ + postH / 2);
+  lPost.position.set(padShift - ps / 2, leftPostY + ps / 2, postBaseZ + postH / 2);
   postGroup.add(lPost);
 
   const rPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  rPost.position.set(-ps / 2, rightPostY + ps / 2, postBaseZ + postH / 2);
+  rPost.position.set(padShift - ps / 2, rightPostY + ps / 2, postBaseZ + postH / 2);
   postGroup.add(rPost);
 
   meshes.bottomPosts = postGroup;
@@ -106,11 +109,11 @@ export function buildScene(p) {
   const plateSize = ps + 1;
 
   const lBase = makeMesh(box(plateSize, plateSize, plateH), COLORS.hardware);
-  lBase.position.set(-ps / 2, leftPostY + ps / 2, postBaseZ - plateH / 2);
+  lBase.position.set(padShift - ps / 2, leftPostY + ps / 2, postBaseZ - plateH / 2);
   basesGroup.add(lBase);
 
   const rBase = makeMesh(box(plateSize, plateSize, plateH), COLORS.hardware);
-  rBase.position.set(-ps / 2, rightPostY + ps / 2, postBaseZ - plateH / 2);
+  rBase.position.set(padShift - ps / 2, rightPostY + ps / 2, postBaseZ - plateH / 2);
   basesGroup.add(rBase);
 
   meshes.postBases = basesGroup;
@@ -151,7 +154,7 @@ export function buildScene(p) {
     const yStart = sillY + i * p.stringerOC + p.stringerStockThickness;
     const blockLen = p.stringerOC - p.stringerStockThickness;
     const block = makeMesh(box(blockThickness, blockLen, blockHeight), COLORS.blocking);
-    block.position.set(blockThickness / 2, yStart + blockLen / 2, blockZ);
+    block.position.set(padShift + blockThickness / 2, yStart + blockLen / 2, blockZ);
     blockingGroup.add(block);
   }
 
@@ -163,11 +166,11 @@ export function buildScene(p) {
   const tieZ = p.padAboveGrade + p.sillPlateThickness + tieH / 2;
 
   const lTie = makeMesh(box(tieW, tieD, tieH), COLORS.hardware);
-  lTie.position.set(tieW / 2, sillY + p.stringerStockThickness + tieD / 2, tieZ);
+  lTie.position.set(padShift + tieW / 2, sillY + p.stringerStockThickness + tieD / 2, tieZ);
   tiesGroup.add(lTie);
 
   const rTie = makeMesh(box(tieW, tieD, tieH), COLORS.hardware);
-  rTie.position.set(tieW / 2, sillY + p.topPostSpacing - p.stringerStockThickness - tieD / 2, tieZ);
+  rTie.position.set(padShift + tieW / 2, sillY + p.topPostSpacing - p.stringerStockThickness - tieD / 2, tieZ);
   tiesGroup.add(rTie);
 
   meshes.tensionTies = tiesGroup;
