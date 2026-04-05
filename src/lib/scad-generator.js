@@ -176,46 +176,62 @@ module stringer(offset_y) {
   run = tread_depth;
   angle = atan(rise / run);
   hyp = sqrt(rise * rise + run * run);
-  // Perpendicular offset for the board width (bottom edge offset from top edge)
-  bx = -stringer_w * sin(angle);  // x component of perpendicular offset
-  by = stringer_w * cos(angle);   // note: this goes "down" from top edge (negative in our coords, but we negate)
+
+  // Perpendicular offset from top edge to bottom edge of board
+  perp_dx = -stringer_w * rise / hyp;   // x component (goes left/negative)
+  perp_dy = -stringer_w * run / hyp;    // y component (goes down/negative)
 
   color(stringer_color)
   translate([0, offset_y, pad_above + sill_plate_h])
-  // Rotate from XY polygon plane to XZ (standing up): 90 around X puts Y→Z
   rotate([90, 0, 0]) {
     linear_extrude(height = stringer_t) {
-      // Build polygon clockwise: sawtooth top edge (left to right), then bottom edge (right to left)
-      // All coords in installed frame: x = horizontal, y = vertical (up)
+      // Polygon in installed XY frame: x = horizontal run, y = vertical rise
+      // Trace clockwise: top edge left→right (sawtooth), then bottom edge right→left
 
-      top_points = concat(
-        // Start: seat cut at bottom-left of sawtooth
-        [[0, -bottom_drop]],
-        // Sawtooth notches going up (left to right)
+      // === TOP EDGE (sawtooth) ===
+      // y=0 is the seat cut surface (sits on sill plate)
+      // Notches are offset down by bottom_drop so first finished riser = rise
+      top_edge = concat(
+        // Start at seat cut surface
+        [[0, 0]],
+        // Sawtooth notches — each tread level at (i+1)*rise - bottom_drop
         [for (i = [0 : num_treads - 1])
+          let (
+            tread_y = (i + 1) * rise - bottom_drop,
+            prev_y = i == 0 ? 0 : i * rise - bottom_drop,
+            td = i == num_treads - 1 ? run - top_tread_reduction : run
+          )
           each [
-            [i * run, i * rise - bottom_drop],                                                           // riser bottom (inside corner)
-            [i * run, (i + 1) * rise - bottom_drop],                                                    // riser top
-            [i * run + (i == num_treads - 1 ? run - top_tread_reduction : run), (i + 1) * rise - bottom_drop]  // tread end
+            [i * run, prev_y],       // riser bottom (inside corner)
+            [i * run, tread_y],      // riser top
+            [i * run + td, tread_y]  // tread end
           ]
         ],
-        // Plumb cut at top (vertical line up to where rim joist meets)
+        // Plumb cut at top: from last tread up to the top of the stringer
         [[num_treads * run, num_treads * rise - bottom_drop]]
       );
 
-      // Bottom edge: parallel to the stair slope, offset by board width perpendicular
-      // Goes from top-right back to bottom-left
-      bot_right_x = num_treads * run - stringer_w * rise / hyp;
-      bot_right_y = num_treads * rise - bottom_drop - stringer_w * run / hyp;
-      bot_left_x = 0 - stringer_w * rise / hyp;
-      bot_left_y = -bottom_drop - stringer_w * run / hyp;
+      // === BOTTOM EDGE (uncut board edge, parallel to slope) ===
+      // The top of the stringer at (num_treads*run, num_treads*rise - bottom_drop)
+      // offset perpendicular by board width gives the bottom edge endpoints
+      top_x = num_treads * run;
+      top_y = num_treads * rise - bottom_drop;
+      tr_x = top_x + perp_dx;
+      tr_y = top_y + perp_dy;
 
-      bottom_points = [
-        [bot_right_x, bot_right_y],
-        [bot_left_x, bot_left_y]
+      // Bottom-left: offset from seat cut origin
+      bl_x = 0 + perp_dx;
+      bl_y = 0 + perp_dy;
+
+      // Seat cut: L-shape at bottom
+      // From bottom board edge (bl), horizontal level cut to x=0, then vertical plumb toe up to (0,0)
+      bottom_edge = [
+        [tr_x, tr_y],        // bottom of plumb cut at top
+        [bl_x, bl_y],        // bottom of board near seat
+        [0, bl_y],            // level cut: horizontal bearing surface
       ];
 
-      polygon(concat(top_points, bottom_points));
+      polygon(concat(top_edge, bottom_edge));
     }
   }
 }`;

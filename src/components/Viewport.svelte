@@ -50,11 +50,16 @@
         0.1, 10000
       );
       if (viewMode === 'side') {
-        camera.position.set(60, 50, 200);
-        camera.lookAt(60, 50, 0);
+        // Look along -Y axis: camera at large +Y, looking at Y=0
+        // Model: X = run, Y = width, Z = height
+        camera.position.set(60, 500, 20);
+        camera.lookAt(60, 0, 20);
+        camera.up.set(0, 0, 1);  // Z is up
       } else if (viewMode === 'front') {
-        camera.position.set(-200, 50, 20);
-        camera.lookAt(0, 50, 20);
+        // Look along +X axis: camera at large -X, looking at X=0
+        camera.position.set(-500, 18, 20);
+        camera.lookAt(0, 18, 20);
+        camera.up.set(0, 0, 1);  // Z is up
       }
     }
 
