@@ -177,21 +177,25 @@ export function buildScene(p) {
   const boardW = 5.5; // 2x6 width
   const gap = 0.125;
 
+  // notchZ(i) = stringer horizontal cut level for notch i
+  function notchZ(i) {
+    return p.padAboveGrade + (i + 1) * p.actualRiserHeight - p.deckingThickness;
+  }
+
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
-    // Finished tread top = padAbove + (i+1) * actualRiser
-    // Tread bottom (notch level) = treadTop - deckingThickness
-    const treadTop = p.padAboveGrade + (i + 1) * p.actualRiserHeight;
-    const notchZ = treadTop - p.deckingThickness;
+    const nz = notchZ(i);
 
-    // Tread boards start flush with the riser face, covering the riser board top.
-    // No nosing — front of tread is flush with the riser face.
+    // Tread boards sit on the stringer tread cut, butt against this step's riser board,
+    // and overhang the front edge to cover the top of the riser board below.
+    // Front board overhangs by riserBoardThickness beyond the stringer tread cut.
+    const overhang = p.riserBoardThickness;
     const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    front.position.set(x + boardW / 2, p.stairWidth / 2, notchZ + p.deckingThickness / 2);
+    front.position.set(x - overhang + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
     treadsGroup.add(front);
 
     const back = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    back.position.set(x + boardW + gap + boardW / 2, p.stairWidth / 2, notchZ + p.deckingThickness / 2);
+    back.position.set(x - overhang + boardW + gap + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
 
@@ -202,12 +206,13 @@ export function buildScene(p) {
 
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
-    // Riser goes from walking surface below up to BOTTOM of tread decking above.
-    const riserBottom = p.padAboveGrade + i * p.actualRiserHeight;
-    const riserTop = p.padAboveGrade + (i + 1) * p.actualRiserHeight - p.deckingThickness;
+    // Riser board sits ON its step's stringer tread cut.
+    // Top is flush with the next stringer tread cut above.
+    const riserBottom = notchZ(i);
+    const riserTop = (i < p.numTreads - 1) ? notchZ(i + 1) : (p.totalHeight - p.deckingThickness);
     const riserH = riserTop - riserBottom;
 
-    // Riser boards are cut to fit BETWEEN stringers (not through them)
+    // Riser boards are cut to fit BETWEEN stringers
     for (let s = 0; s < p.numStringers - 1; s++) {
       const yStart = sillY + s * p.stringerOC + p.stringerStockThickness;
       const segLen = p.stringerOC - p.stringerStockThickness;
