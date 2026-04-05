@@ -400,14 +400,10 @@ function buildDimensions(p) {
 
 /**
  * Build the stringer 2D profile as a Three.js Shape.
- * Shape is in XY plane: x = horizontal run, y = vertical rise.
- * Counter-clockwise winding (required by Three.js for outer contour).
+ * XY plane: x = horizontal run, y = vertical height above seat.
  *
- * Profile viewed from the side:
- *   - Bottom edge runs diagonally along the stair slope (uncut board edge)
- *   - Top edge has sawtooth notches
- *   - Seat cut at bottom (L-shape: horizontal bearing + vertical plumb toe)
- *   - Plumb cut at top (vertical, bears against rim joist)
+ * The shape is a sawtooth on top with the board's bottom edge below.
+ * CCW winding for Three.js outer contour.
  */
 function buildStringerShape(p) {
   const rise = p.actualRiserHeight;
@@ -416,54 +412,49 @@ function buildStringerShape(p) {
   const drop = p.bottomDrop;
   const sw = p.stringerStockWidth;
   const topReduce = p.topTreadReduction;
-  const hyp = Math.sqrt(rise * rise + run * run);
-  // Perpendicular offset from top edge to bottom edge
-  const px = sw * rise / hyp;  // x offset (left)
-  const py = sw * run / hyp;   // y offset (down)
 
-  // Counter-clockwise: interior on the left as you trace the path.
-  // Start at seat plumb toe bottom, go up and right through sawtooth,
-  // then back down along the bottom board edge.
+  // Board bottom edge: parallel to slope, offset down by board width
+  // perpendicular to the slope direction
+  const hyp = Math.sqrt(rise * rise + run * run);
+  const offX = sw * rise / hyp;  // perpendicular offset x-component
+  const offY = sw * run / hyp;   // perpendicular offset y-component
+
+  // Stringer top-right: at the plumb cut
+  const topX = n * run;
+  const topY = n * rise - drop;
+
+  // Build points array (CCW)
   const pts = [];
 
-  // 1. Seat cut area: plumb toe bottom → plumb toe top → seat surface right
-  pts.push([-px, -py]);            // bottom of plumb toe (= bottom-left of board)
-  pts.push([0, -drop]);            // top of plumb toe
-  pts.push([run, -drop]);          // seat surface right → first riser bottom
+  // --- Bottom edge, left to right ---
+  // Seat: plumb toe bottom, then level bearing surface
+  pts.push([0, -offY]);       // bottom of plumb toe (board bottom at x=0)
+  pts.push([0, -drop]);       // plumb toe top = seat level
 
-  // 2. Sawtooth: left to right (going up)
-  // First riser up
-  pts.push([run, rise - drop]);    // first riser top
+  // --- Sawtooth, left to right (ascending) ---
+  for (let i = 0; i < n; i++) {
+    const treadY = (i + 1) * rise - drop;
+    const riserX = i * run;
+    const td = (i === n - 1) ? run - topReduce : run;
 
-  // Middle treads (second through second-to-last)
-  for (let i = 1; i < n - 1; i++) {
-    // tread surface to the right, then riser up
-    pts.push([(i + 1) * run, i * rise - drop]);       // tread right = next riser bottom
-    pts.push([(i + 1) * run, (i + 1) * rise - drop]); // riser top
+    // Riser: vertical up
+    pts.push([riserX, treadY]);
+    // Tread: horizontal right
+    pts.push([riserX + td, treadY]);
   }
 
-  // Last tread (shortened by riser board thickness) + top plumb cut
-  if (n >= 2) {
-    const lastI = n - 1;
-    const lastTreadX = lastI * run + (run - topReduce);
-    pts.push([lastTreadX, (n - 1) * rise - drop]);    // last tread right = last riser bottom
-    pts.push([lastTreadX, n * rise - drop]);           // last riser top
-  }
+  // --- Top: plumb cut right edge ---
+  pts.push([topX, topY]);
 
-  // 3. Top plumb cut
-  pts.push([n * run, n * rise - drop]);                // top of stringer
+  // --- Bottom edge, right to left ---
+  pts.push([topX - offX, topY - offY]);  // board bottom at top end
+  // Auto-close back to pts[0] = board bottom at seat end
 
-  // 4. Bottom board edge: right to left (going back down along slope)
-  pts.push([n * run - px, n * rise - drop - py]);      // bottom-right of board
-  // Auto-closes to pts[0] = bottom-left of board
-
-  // Build shape
+  // Create shape
   const shape = new THREE.Shape();
   shape.moveTo(pts[0][0], pts[0][1]);
   for (let i = 1; i < pts.length; i++) {
     shape.lineTo(pts[i][0], pts[i][1]);
   }
-  // Don't explicitly close — Three.js auto-closes Shape
-
   return shape;
 }

@@ -11,68 +11,69 @@
   let currentMeshes = {};
   let hasInitialFit = false;
 
-  function setupScene() {
+  function init() {
     renderer = new THREE.WebGLRenderer({ antialias: true, canvas, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x1e293b);
 
     scene = new THREE.Scene();
-
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambient);
-    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-    directional.position.set(50, 100, 50);
-    scene.add(directional);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(50, 100, 50);
+    scene.add(dir);
     const fill = new THREE.DirectionalLight(0xffffff, 0.3);
     fill.position.set(-50, 50, -50);
     scene.add(fill);
 
-    updateCamera();
+    // Default camera + controls (will be replaced by setView)
+    camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 10000);
+    camera.up.set(0, 0, 1);
+    camera.position.set(-40, -60, 40);
 
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
     controls.addEventListener('change', requestRender);
+
+    setView(viewMode);
   }
 
-  function updateCamera() {
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+  function setView(mode) {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
 
-    if (viewMode === '3d') {
-      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 10000);
+    // Dispose old controls
+    if (controls) controls.dispose();
+
+    if (mode === '3d') {
+      camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 10000);
       camera.up.set(0, 0, 1);
       camera.position.set(-40, -60, 40);
-      camera.lookAt(30, 18, 15);
     } else {
       const frustum = 40;
-      const aspect = width / height;
+      const aspect = w / h;
       camera = new THREE.OrthographicCamera(
-        -frustum * aspect, frustum * aspect,
-        frustum, -frustum,
-        -10000, 10000
+        -frustum * aspect, frustum * aspect, frustum, -frustum, -10000, 10000
       );
       camera.up.set(0, 0, 1);
-      if (viewMode === 'side') {
-        // Exact side: look along +Y, camera on -Y side
+      if (mode === 'side') {
         camera.position.set(30, -100, 15);
-        camera.lookAt(30, 0, 15);
-      } else if (viewMode === 'front') {
-        // Exact front: look along +X, camera on -X side
+      } else {
         camera.position.set(-100, 18, 15);
-        camera.lookAt(0, 18, 15);
       }
     }
 
-    if (controls) {
-      controls.object = camera;
-      controls.up.set(0, 0, 1);
-      controls.update();
-    }
+    camera.lookAt(30, 18, 15);
+
+    controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.target.set(30, 18, 15);
+    controls.addEventListener('change', requestRender);
+    controls.update();
+
+    requestRender();
   }
 
   function rebuildMeshes(params) {
-    // Remove old meshes
     for (const name in currentMeshes) {
       scene.remove(currentMeshes[name]);
       currentMeshes[name].traverse((child) => {
@@ -84,40 +85,29 @@
       });
     }
 
-    // Build new meshes
-    const meshes = buildScene(params);
+    currentMeshes = buildScene(params);
 
-    // Add to scene
-    for (const [name, mesh] of Object.entries(meshes)) {
+    for (const [name, mesh] of Object.entries(currentMeshes)) {
       mesh.visible = visibility[name] !== false;
       scene.add(mesh);
     }
 
-    // Update reactive state so visibility effect can track it
-    currentMeshes = meshes;
-
-    // Auto-fit camera on first build
     if (!hasInitialFit) {
       hasInitialFit = true;
       const box = new THREE.Box3();
-      for (const mesh of Object.values(meshes)) {
-        if (mesh.visible) box.expandByObject(mesh);
+      for (const m of Object.values(currentMeshes)) {
+        if (m.visible) box.expandByObject(m);
       }
       if (!box.isEmpty()) {
         const center = box.getCenter(new THREE.Vector3());
-        if (controls) {
-          controls.target.copy(center);
-          controls.update();
-        }
+        controls.target.copy(center);
         if (camera.isPerspectiveCamera) {
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
-          camera.position.set(
-            center.x - maxDim * 0.8,
-            center.y + maxDim * 0.6,
-            center.z + maxDim * 1.2
-          );
+          camera.position.set(center.x - maxDim, center.y - maxDim * 0.8, center.z + maxDim * 0.6);
         }
+        camera.lookAt(center);
+        controls.update();
       }
     }
 
@@ -135,30 +125,26 @@
   function render() {
     renderRequested = false;
     if (!renderer) return;
-
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    if (canvas.width !== width || canvas.height !== height) {
-      renderer.setSize(width, height, false);
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (canvas.width !== w || canvas.height !== h) {
+      renderer.setSize(w, h, false);
       if (camera.isPerspectiveCamera) {
-        camera.aspect = width / height;
+        camera.aspect = w / h;
       } else {
-        const frustum = 80;
-        const aspect = width / height;
-        camera.left = -frustum * aspect;
-        camera.right = frustum * aspect;
-        camera.top = frustum;
-        camera.bottom = -frustum;
+        const f = 40;
+        const a = w / h;
+        camera.left = -f * a; camera.right = f * a;
+        camera.top = f; camera.bottom = -f;
       }
       camera.updateProjectionMatrix();
     }
-
     controls.update();
     renderer.render(scene, camera);
   }
 
   onMount(() => {
-    setupScene();
+    init();
     requestRender();
     window.addEventListener('resize', requestRender);
   });
@@ -169,33 +155,21 @@
     if (renderer) renderer.dispose();
   });
 
-  // Rebuild meshes when params change
   $effect(() => {
-    if (sceneParams && renderer) {
-      rebuildMeshes(sceneParams);
-    }
+    if (sceneParams && renderer) rebuildMeshes(sceneParams);
   });
 
-  // Update visibility instantly (no rebuild)
-  // Only depends on `visibility` prop — reads currentMeshes imperatively
   $effect(() => {
     const vis = visibility;
-    // Touch all visibility values to register as dependencies
     Object.values(vis);
-    // Apply to current meshes (plain object, not reactive)
     for (const [name, mesh] of Object.entries(currentMeshes)) {
       mesh.visible = vis[name] !== false;
     }
     requestRender();
   });
 
-  // Update camera on view mode change
   $effect(() => {
-    viewMode;
-    if (renderer) {
-      updateCamera();
-      requestRender();
-    }
+    if (renderer) setView(viewMode);
   });
 </script>
 
@@ -204,15 +178,6 @@
 </div>
 
 <style>
-  .viewport-container {
-    width: 100%;
-    height: 100%;
-    min-height: 400px;
-    position: relative;
-  }
-  canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
+  .viewport-container { width: 100%; height: 100%; min-height: 400px; position: relative; }
+  canvas { width: 100%; height: 100%; display: block; }
 </style>
