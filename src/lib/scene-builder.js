@@ -86,7 +86,7 @@ export function buildScene(p) {
   // --- Sill plate ---
   // Sill plate needs to be deep enough to support the full stringer seat + first tread
   const sillY = (p.stairWidth - p.topPostSpacing) / 2;
-  const sillDepth = p.treadDepth + p.riserBoardThickness;  // extends under seat + first tread area
+  const sillDepth = p.treadDepth;  // fits fully on the concrete pad
   const sillMesh = makeMesh(box(sillDepth, p.topPostSpacing, p.sillPlateThickness), COLORS.sillPlate);
   sillMesh.position.set(padShift + sillDepth / 2, sillY + p.topPostSpacing / 2, p.padAboveGrade + p.sillPlateThickness / 2);
   meshes.sillPlate = sillMesh;
