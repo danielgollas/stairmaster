@@ -1,11 +1,11 @@
 import { createOpenSCAD } from 'openscad-wasm';
 
-let instance = null;
+let openscad = null;
 
 async function init() {
-  if (instance) return instance;
-  instance = await createOpenSCAD({ noInitialRun: true });
-  return instance;
+  if (openscad) return openscad;
+  openscad = await createOpenSCAD({ noInitialRun: true });
+  return openscad;
 }
 
 self.onmessage = async function (e) {
@@ -13,7 +13,8 @@ self.onmessage = async function (e) {
 
   if (type === 'render') {
     try {
-      const inst = await init();
+      const scad = await init();
+      const inst = scad.getInstance();
 
       // Write the .scad source to the virtual filesystem
       inst.FS.writeFile('/input.scad', scadSource);
@@ -21,9 +22,6 @@ self.onmessage = async function (e) {
       // Render to STL
       inst.callMain(['/input.scad', '--enable=manifold', '-o', '/output.stl']);
       const stlData = inst.FS.readFile('/output.stl');
-
-      // 2D views (side/front) are handled by Three.js orthographic camera,
-      // not separate SVG projection. This avoids doubling WASM render time.
 
       self.postMessage({
         type: 'result',
