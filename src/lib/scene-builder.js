@@ -190,7 +190,7 @@ export function buildScene(p) {
     // Top tread: back butts against rim joist at totalRun.
     const isTopTread = (i === p.numTreads - 1);
     const topTdCalc = p.treadDepth - 2 * p.riserBoardThickness;
-    const rimFace = (p.numTreads - 1) * p.treadDepth + topTdCalc;
+    const rimFace = (p.numTreads - 1) * p.treadDepth + topTdCalc + p.riserBoardThickness;
     const treadStart = isTopTread
       ? rimFace - (boardW + gap + boardW)
       : x - p.riserBoardThickness;
@@ -243,9 +243,9 @@ export function buildScene(p) {
   meshes.stringerHangers = hangersGroup;
 
   // --- Rim joist ---
-  // Rim joist face: end of last stringer tread cut (no extra gap — rim joist IS the riser)
+  // Rim joist face aligns with stringer plumb cut
   const topTdScene = p.treadDepth - 2 * p.riserBoardThickness;
-  const rimX = (p.numTreads - 1) * p.treadDepth + topTdScene;
+  const rimX = (p.numTreads - 1) * p.treadDepth + topTdScene + p.riserBoardThickness;
   const rimMesh = makeMesh(box(1.5, p.stairWidth, p.rimJoistWidth), COLORS.rimJoist);
   rimMesh.position.set(rimX + 0.75, p.stairWidth / 2, p.totalHeight - p.deckingThickness - p.rimJoistWidth / 2);
   meshes.rimJoist = rimMesh;
@@ -461,7 +461,7 @@ function buildStringerShape(p) {
   const rb = p.riserBoardThickness;
   // Top plumb cut: end of last tread + rb gap for rim joist
   const topTd = run - 2 * rb;  // top tread stringer cut depth
-  const topX = (n - 1) * run + topTd;  // plumb cut x = rim joist face
+  const topX = (n - 1) * run + topTd + rb;  // plumb cut x (stringer bears against rim joist)
   const topY = n * rise - drop;  // y at top of sawtooth
 
   // Board bottom edge: line through (-offX, -drop-offY) with slope rise/run.
