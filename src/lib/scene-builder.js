@@ -175,16 +175,18 @@ export function buildScene(p) {
 
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
-    const z = p.padAboveGrade + p.sillPlateThickness + (i + 1) * p.actualRiserHeight - p.bottomDrop;
+    // Tread sits ON the stringer notch. Notch level = padAbove + sillPlate + (i+1)*rise
+    // (the stringer shape handles bottomDrop internally)
+    const notchZ = p.padAboveGrade + p.sillPlateThickness + (i + 1) * p.actualRiserHeight;
 
     // Tread boards sit behind the riser board
     const treadX = x + p.riserBoardThickness;
     const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    front.position.set(treadX + boardW / 2, p.stairWidth / 2, z + p.deckingThickness / 2);
+    front.position.set(treadX + boardW / 2, p.stairWidth / 2, notchZ + p.deckingThickness / 2);
     treadsGroup.add(front);
 
     const back = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    back.position.set(treadX + boardW + gap + boardW / 2, p.stairWidth / 2, z + p.deckingThickness / 2);
+    back.position.set(treadX + boardW + gap + boardW / 2, p.stairWidth / 2, notchZ + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
 
@@ -195,10 +197,14 @@ export function buildScene(p) {
 
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
-    const zBottom = p.padAboveGrade + p.sillPlateThickness + i * p.actualRiserHeight - p.bottomDrop;
+    // Riser sits against the stringer's vertical notch face.
+    // Notch bottom = padAbove + sillPlate + i*rise
+    // Notch top = padAbove + sillPlate + (i+1)*rise
+    const notchBottom = p.padAboveGrade + p.sillPlateThickness + i * p.actualRiserHeight;
+    const riserH = p.actualRiserHeight;
 
-    const riser = makeMesh(box(p.riserBoardThickness, p.stairWidth, p.actualRiserHeight), COLORS.riser);
-    riser.position.set(x + p.riserBoardThickness / 2, p.stairWidth / 2, zBottom + p.actualRiserHeight / 2);
+    const riser = makeMesh(box(p.riserBoardThickness, p.stairWidth, riserH), COLORS.riser);
+    riser.position.set(x + p.riserBoardThickness / 2, p.stairWidth / 2, notchBottom + riserH / 2);
     risersGroup.add(riser);
   }
 
@@ -345,26 +351,21 @@ function buildDimensions(p) {
 
   // Per-riser height labels (finished surface to surface)
   const riserDimX = -6;
-  // Bottom riser: pad surface → first tread decking top
   const padSurface = p.padAboveGrade;
+  const base = p.padAboveGrade + p.sillPlateThickness;
   for (let i = 0; i < p.numRisers; i++) {
-    let zFrom, zTo, label;
+    let zFrom, zTo;
     if (i === 0) {
-      // Bottom riser: pad surface to first tread top
       zFrom = padSurface;
-      zTo = p.padAboveGrade + p.sillPlateThickness + p.actualRiserHeight - p.bottomDrop + p.deckingThickness;
-      label = `${(zTo - zFrom).toFixed(2)}" R1`;
+      zTo = base + p.actualRiserHeight + p.deckingThickness;
     } else if (i < p.numTreads) {
-      // Middle risers: tread top to tread top
-      zFrom = p.padAboveGrade + p.sillPlateThickness + i * p.actualRiserHeight - p.bottomDrop + p.deckingThickness;
-      zTo = p.padAboveGrade + p.sillPlateThickness + (i + 1) * p.actualRiserHeight - p.bottomDrop + p.deckingThickness;
-      label = `${(zTo - zFrom).toFixed(2)}" R${i + 1}`;
+      zFrom = base + i * p.actualRiserHeight + p.deckingThickness;
+      zTo = base + (i + 1) * p.actualRiserHeight + p.deckingThickness;
     } else {
-      // Top riser: last tread top to deck top
-      zFrom = p.padAboveGrade + p.sillPlateThickness + p.numTreads * p.actualRiserHeight - p.bottomDrop + p.deckingThickness;
+      zFrom = base + p.numTreads * p.actualRiserHeight + p.deckingThickness;
       zTo = p.totalHeight;
-      label = `${(zTo - zFrom).toFixed(2)}" R${i + 1}`;
     }
+    const label = `${(zTo - zFrom).toFixed(2)}" R${i + 1}`;
     group.add(makeDimLine(
       [riserDimX, dimY, zFrom],
       [riserDimX, dimY, zTo],
