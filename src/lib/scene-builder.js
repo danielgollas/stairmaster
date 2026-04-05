@@ -117,20 +117,22 @@ export function buildScene(p) {
 
   // --- Stringers ---
   const stringerGroup = new THREE.Group();
-  // Build profile in XY (x=run, y=height), extrude along Z (=thickness)
   const stringerShape = buildStringerShape(p);
-  const extrudeSettings = { depth: p.stringerStockThickness, bevelEnabled: false };
-  const stringerGeo = new THREE.ExtrudeGeometry(stringerShape, extrudeSettings);
+  const extSettings = { depth: p.stringerStockThickness, bevelEnabled: false };
+  const baseGeo = new THREE.ExtrudeGeometry(stringerShape, extSettings);
+  // Shape in XY extruded along +Z. We need: X→X(run), Y→Z(height), Z→Y(width)
+  // rotateX(-PI/2): Y→-Z, Z→Y. So shape Y goes DOWN (wrong).
+  // rotateX(PI/2): Y→Z, Z→-Y. Shape Y goes UP (correct), extrusion goes -Y.
+  baseGeo.rotateX(-Math.PI / 2);
 
-  // Transform geometry itself (not the mesh) from XY+Z to XZ+Y:
-  // We want: shape X → world X, shape Y → world Z, extrude Z → world Y
-  stringerGeo.rotateX(Math.PI / 2);
+  const seatZ = p.padAboveGrade + p.sillPlateThickness;
 
   for (let i = 0; i < p.numStringers; i++) {
     const y = sillY + i * p.stringerOC;
-    const geo = stringerGeo.clone();
+    const geo = baseGeo.clone();
     const mesh = makeMesh(geo, COLORS.stringer);
-    mesh.position.set(0, y + p.stringerStockThickness, p.padAboveGrade + p.sillPlateThickness);
+    // After rotateX(-PI/2): Y→Z, Z→+Y. Extrusion goes +Y from origin.
+    mesh.position.set(0, y, seatZ + p.bottomDrop);
     stringerGroup.add(mesh);
   }
 
@@ -423,31 +425,32 @@ function buildStringerShape(p) {
   const topX = n * run;
   const topY = n * rise - drop;
 
-  // Build points array (CCW)
+  // Build points (CCW in XY). After rotateX(PI/2): shape Y → world Z (up).
+  // Sawtooth at high Y = top of stringer. Board bottom at low Y = bottom.
   const pts = [];
 
-  // --- Bottom edge, left to right ---
-  // Seat: plumb toe bottom, then level bearing surface
-  pts.push([0, -offY]);       // bottom of plumb toe (board bottom at x=0)
-  pts.push([0, -drop]);       // plumb toe top = seat level
+  // --- Board bottom edge, left to right ---
+  pts.push([0, -offY]);                     // board bottom at seat end
+  pts.push([topX - offX, topY - offY]);      // board bottom at top end
 
-  // --- Sawtooth, left to right (ascending) ---
-  for (let i = 0; i < n; i++) {
+  // --- Top plumb cut ---
+  pts.push([topX, topY]);
+
+  // --- Sawtooth, right to left (descending) ---
+  for (let i = n - 1; i >= 0; i--) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
     const td = (i === n - 1) ? run - topReduce : run;
 
-    // Riser: vertical up
-    pts.push([riserX, treadY]);
-    // Tread: horizontal right
-    pts.push([riserX + td, treadY]);
+    pts.push([riserX + td, treadY]);         // tread right end
+    pts.push([riserX, treadY]);              // riser top (inside corner)
+    if (i > 0) {
+      pts.push([riserX, i * rise - drop]);   // riser bottom
+    }
   }
 
-  // --- Top: plumb cut right edge ---
-  pts.push([topX, topY]);
-
-  // --- Bottom edge, right to left ---
-  pts.push([topX - offX, topY - offY]);  // board bottom at top end
+  // --- Seat ---
+  pts.push([0, -drop]);                      // seat level
   // Auto-close back to pts[0] = board bottom at seat end
 
   // Create shape
