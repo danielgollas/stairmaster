@@ -69,7 +69,8 @@
     riserVariance: 0,
   }));
 
-  let scadSource = $derived(generateScad({
+  // Shared params object for scad generation
+  let scadParams = $derived({
     totalHeight, topPostSpacing,
     numRisers: geometry.numRisers,
     actualRiserHeight: geometry.actualRiserHeight,
@@ -88,7 +89,13 @@
     bottomDrop: stringerProfile.bottomDrop,
     topTreadReduction: stringerProfile.topTreadReduction,
     postHeight: 42,
-  }, visibility));
+  });
+
+  // Full model for WASM rendering (always all components visible)
+  let renderScadSource = $derived(generateScad(scadParams));
+
+  // Visibility-filtered source for download only
+  let downloadScadSource = $derived(generateScad(scadParams, visibility));
 
   // Web Worker
   let worker;
@@ -117,9 +124,10 @@
     return () => { worker.terminate(); };
   });
 
-  // Debounced render: track scadSource changes
+  // Debounced render: only triggers on dimensional changes (renderScadSource),
+  // NOT on visibility toggles
   $effect(() => {
-    const source = scadSource; // capture dependency
+    const source = renderScadSource; // capture dependency — excludes visibility
     const ready = workerReady;
     if (!ready) return;
 
@@ -132,7 +140,7 @@
   });
 
   function downloadScad() {
-    const blob = new Blob([scadSource], { type: 'text/plain' });
+    const blob = new Blob([downloadScadSource], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
