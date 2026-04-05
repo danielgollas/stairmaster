@@ -477,7 +477,7 @@ function buildStringerShape(p) {
   for (let i = 0; i < n; i++) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
-    const td = (i === n - 1) ? run - topReduce - rb : run - rb;
+    const td = run - rb;  // all treads shortened by riser board thickness
     pts.push([riserX, treadY]);              // riser top (vertical face)
     pts.push([riserX + td, treadY]);         // tread right end (shortened)
     // Fill the rb gap to the next riser face (stringer material remains here
