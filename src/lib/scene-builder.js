@@ -136,9 +136,8 @@ export function buildScene(p) {
     const y = sillY + i * p.stringerOC;
     const geo = baseGeo.clone();
     const mesh = makeMesh(geo, COLORS.stringer);
-    // position.z = seatZ: first notch y=(rise-drop) maps to z = seatZ+rise-drop
-    // = padAbove + sillPlate + rise - (decking+sillPlate) = padAbove + rise - decking
-    // = correct tread bottom position
+    // Shape y=0 = seat = sill plate top. position.z = seatZ maps y=0 to sill plate top.
+    // First notch y=(rise-drop) maps to z = seatZ + rise - drop = correct tread bottom.
     mesh.position.set(0, y + p.stringerStockThickness, seatZ);
     stringerGroup.add(mesh);
   }
@@ -444,9 +443,8 @@ function buildDimensions(p) {
 
 /**
  * Build the stringer 2D profile as a Three.js Shape.
- * XY plane: x = horizontal run, y = vertical height above seat.
- *
- * The shape is a sawtooth on top with the board's bottom edge below.
+ * XY plane: x = horizontal run, y = vertical height.
+ * y=0 is the seat level (sill plate top). All notch positions relative to seat.
  * CCW winding for Three.js outer contour.
  */
 function buildStringerShape(p) {
@@ -455,60 +453,57 @@ function buildStringerShape(p) {
   const n = p.numTreads;
   const drop = p.bottomDrop;
   const sw = p.stringerStockWidth;
-  const topReduce = p.topTreadReduction;
+  const rb = p.riserBoardThickness;
 
-  // Board bottom edge: parallel to the stair slope, offset perpendicular by board width.
-  // The slope line passes through the notch inside corners with slope rise/run.
-  // Perpendicular offset: dx = -sw*rise/hyp, dy = -sw*run/hyp
+  // Notch heights relative to seat (y=0):
+  // First notch at y = rise - drop (shortened by drop)
+  // Subsequent notches spaced by rise
+  function notchY(i) { return (i + 1) * rise - drop; }
+
+  // Top plumb cut
+  const topTd = run - 2 * rb;  // top tread cut depth
+  const topX = (n - 1) * run + topTd + rb;  // plumb cut x
+  const topY = notchY(n - 1);  // top of sawtooth
+
+  // Board bottom edge: parallel to stair slope, offset by board width
+  // The slope passes through notch inside corners. Slope = rise/run.
+  // A notch corner is at (0, 0) for the seat reference point.
+  // The perpendicular offset gives the bottom edge.
   const hyp = Math.sqrt(rise * rise + run * run);
   const offX = sw * rise / hyp;
   const offY = sw * run / hyp;
-
-  const rb = p.riserBoardThickness;
-  // Top plumb cut: end of last tread + rb gap for rim joist
-  const topTd = run - 2 * rb;  // top tread stringer cut depth
-  const topX = (n - 1) * run + topTd + rb;  // plumb cut x (stringer bears against rim joist)
-  const topY = n * rise - drop;  // y at top of sawtooth
-
-  // Board bottom edge: line through (-offX, -drop-offY) with slope rise/run.
   const slopeRatio = rise / run;
-  const botAtSeat = (-drop - offY) + offX * slopeRatio;   // y at x=0
-  const botAtTop = botAtSeat + topX * slopeRatio;          // y at x=topX
 
-  // The seat bearing sits flush on the sill plate at y = -drop.
-  // Nothing extends below the seat level.
-  // Where does the board bottom edge meet y = -drop (seat level)?
-  const seatEndX = (-drop - botAtSeat) / slopeRatio;  // x where bottom edge meets seat level
+  // Board bottom at x=0: offset from seat (0,0)
+  const botAtSeat = -offY + offX * slopeRatio;
+  const botAtTop = botAtSeat + topX * slopeRatio;
+
+  // Where does board bottom edge meet y=0 (seat level)?
+  const seatEndX = (0 - botAtSeat) / slopeRatio;
 
   const pts = [];
 
-  // 1. Seat cut: board bottom meets seat level, then horizontal bearing to first riser
-  pts.push([seatEndX, -drop]);               // board bottom meets seat level
-  pts.push([0, -drop]);                      // seat bearing to first riser (horizontal)
+  // 1. Seat cut at y=0 (sill plate top)
+  pts.push([seatEndX, 0]);           // board bottom meets seat level
+  pts.push([0, 0]);                  // seat bearing to first riser
 
   // 2. Sawtooth: left to right (ascending)
-  // The stringer tread cut is shortened by riserBoardThickness — the riser board
-  // fits in the gap between the vertical face and the tread cut start.
-  // Tread boards overhang the front to cover the riser board.
   for (let i = 0; i < n; i++) {
-    const treadY = (i + 1) * rise - drop;
+    const treadY = notchY(i);
     const riserX = i * run;
-    // All treads shortened by rb. Top tread extra 2*rb shorter (rim joist = final riser).
     const td = (i === n - 1) ? run - 2 * rb : run - rb;
-    pts.push([riserX, treadY]);              // riser top (vertical face)
-    pts.push([riserX + td, treadY]);         // tread right end (shortened)
-    // Fill the rb gap to the next riser face (stringer material remains here
-    // as a ledge for the next riser board to sit against)
+    pts.push([riserX, treadY]);              // riser top
+    pts.push([riserX + td, treadY]);         // tread right end
     if (i < n - 1) {
-      pts.push([(i + 1) * run, treadY]);     // horizontal to next riser face
+      pts.push([(i + 1) * run, treadY]);     // fill gap to next riser
     }
   }
 
-  // 3. Top plumb cut (vertical at x=topX)
+  // 3. Top plumb cut
   pts.push([topX, topY]);       // top of plumb cut
   pts.push([topX, botAtTop]);   // bottom of plumb cut
 
-  // Auto-close: (topX, botAtTop) → (seatEndX, -drop) = board bottom edge
+  // Auto-close: board bottom edge back to seat
 
   // Create shape
   const shape = new THREE.Shape();

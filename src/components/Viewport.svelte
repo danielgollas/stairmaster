@@ -14,7 +14,7 @@
   function init() {
     renderer = new THREE.WebGLRenderer({ antialias: true, canvas, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x1e293b);
+    renderer.setClearColor(0xd4e6f1);
 
     scene = new THREE.Scene();
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
