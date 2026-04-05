@@ -44,13 +44,19 @@ bottom_drop = ${p.bottomDrop};
 top_tread_reduction = ${p.topTreadReduction};
 post_height = ${p.postHeight};
 
-// Colors
-concrete_color = [0.6, 0.6, 0.6];
-gravel_color = [0.36, 0.25, 0.13];
-pt_lumber_color = [0.76, 0.60, 0.22];
-decking_color = [0.63, 0.38, 0.04];
-hardware_color = [0.86, 0.16, 0.16];
+// Colors — distinct per component type
+concrete_color = [0.65, 0.65, 0.65];
+gravel_color = [0.45, 0.35, 0.20];
+stringer_color = [0.85, 0.65, 0.15];
+sill_plate_color = [0.70, 0.50, 0.10];
+post_color = [0.60, 0.40, 0.15];
+decking_color = [0.55, 0.35, 0.10];
+riser_color = [0.50, 0.30, 0.08];
+blocking_color = [0.75, 0.55, 0.20];
+hardware_color = [0.80, 0.20, 0.20];
+rim_joist_color = [0.65, 0.45, 0.12];
 ground_color = [0.13, 0.77, 0.13, 0.3];
+grid_color = [0.3, 0.3, 0.3, 0.5];
 
 ${gridModule()}
 
@@ -91,7 +97,7 @@ staircase();
 function gridModule() {
   return `
 module floor_grid() {
-  color([0.3, 0.3, 0.3, 0.5])
+  color(grid_color)
   for (x = [-24 : 12 : total_run + 48]) {
     translate([x, -24, -0.05])
       cube([0.25, stair_width + 48, 0.05]);
@@ -107,8 +113,8 @@ function groundPlaneModule() {
   return `
 module ground_plane() {
   color(ground_color)
-    translate([-50, -50, 0])
-      cube([total_run + 150, stair_width + 100, 0.1]);
+    translate([-24, -24, -0.1])
+      cube([total_run + 72, stair_width + 48, 0.1]);
 }`;
 }
 
@@ -129,7 +135,7 @@ module concrete_pad() {
 function sillPlateModule() {
   return `
 module sill_plate() {
-  color(pt_lumber_color)
+  color(sill_plate_color)
     translate([0, (stair_width - top_post_spacing) / 2, pad_above])
       cube([tread_depth, top_post_spacing, sill_plate_h]);
 }`;
@@ -138,7 +144,7 @@ module sill_plate() {
 function bottomPostsModule() {
   return `
 module bottom_posts() {
-  color(pt_lumber_color) {
+  color(post_color) {
     // Left post
     translate([-post_size, (stair_width - top_post_spacing) / 2 - post_size, pad_above])
       cube([post_size, post_size, post_height]);
@@ -174,7 +180,7 @@ module stringer(offset_y) {
   bx = -stringer_w * sin(angle);  // x component of perpendicular offset
   by = stringer_w * cos(angle);   // note: this goes "down" from top edge (negative in our coords, but we negate)
 
-  color(pt_lumber_color)
+  color(stringer_color)
   translate([0, offset_y, pad_above + sill_plate_h])
   // Rotate from XY polygon plane to XZ (standing up): 90 around X puts Y→Z
   rotate([90, 0, 0]) {
@@ -218,7 +224,7 @@ module stringer(offset_y) {
 function blockingModule() {
   return `
 module blocking() {
-  color(pt_lumber_color)
+  color(blocking_color)
   for (i = [0 : num_stringers - 2]) {
     y_start = (stair_width - top_post_spacing) / 2 + i * stringer_oc + stringer_t;
     block_len = stringer_oc - stringer_t;
@@ -265,7 +271,7 @@ module treads() {
 function risersModule() {
   return `
 module risers() {
-  color(decking_color)
+  color(riser_color)
   for (i = [0 : num_treads - 1]) {
     x = i * tread_depth;
     z_bottom = pad_above + sill_plate_h + i * actual_riser - bottom_drop;
@@ -290,7 +296,7 @@ module stringer_hangers() {
 function rimJoistModule() {
   return `
 module rim_joist() {
-  color(pt_lumber_color)
+  color(rim_joist_color)
     translate([total_run, 0, total_height - decking_h - rim_joist_w])
       cube([1.5, stair_width, rim_joist_w]);
 }`;
@@ -308,7 +314,7 @@ module deck_surface() {
 function topPostsModule() {
   return `
 module top_posts() {
-  color(pt_lumber_color) {
+  color(post_color) {
     translate([total_run + 1.5, (stair_width - top_post_spacing) / 2 - post_size, total_height - decking_h])
       cube([post_size, post_size, post_height]);
     translate([total_run + 1.5, (stair_width + top_post_spacing) / 2, total_height - decking_h])

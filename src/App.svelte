@@ -92,10 +92,10 @@
 
   // Web Worker
   let worker;
-  let renderTimer;
   let renderId = 0;
+  let debounceTimer = null;
 
-  function initWorker() {
+  $effect(() => {
     worker = new Worker(
       new URL('./worker/openscad-worker.js', import.meta.url),
       { type: 'module' }
@@ -103,36 +103,32 @@
     worker.onmessage = (e) => {
       if (e.data.type === 'ready') {
         workerReady = true;
-        requestRender();
-      } else if (e.data.type === 'result' && e.data.id === renderId) {
-        stlData = e.data.stl;
-        rendering = false;
+      } else if (e.data.type === 'result') {
+        // Only accept the latest render
+        if (e.data.id === renderId) {
+          stlData = e.data.stl;
+          rendering = false;
+        }
       } else if (e.data.type === 'error') {
         console.error('OpenSCAD error:', e.data.error);
         rendering = false;
       }
     };
-  }
-
-  function requestRender() {
-    if (!workerReady) return;
-    clearTimeout(renderTimer);
-    renderTimer = setTimeout(() => {
-      renderId++;
-      rendering = true;
-      worker.postMessage({ type: 'render', scadSource, id: renderId });
-    }, 500);
-  }
-
-  $effect(() => {
-    initWorker();
-    return () => { if (worker) worker.terminate(); };
+    return () => { worker.terminate(); };
   });
 
-  // Re-render when scad source changes
+  // Debounced render: track scadSource changes
   $effect(() => {
-    scadSource;
-    requestRender();
+    const source = scadSource; // capture dependency
+    const ready = workerReady;
+    if (!ready) return;
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      renderId++;
+      rendering = true;
+      worker.postMessage({ type: 'render', scadSource: source, id: renderId });
+    }, 600);
   });
 
   function downloadScad() {
@@ -188,6 +184,11 @@
       {/if}
     </div>
     <div class="visibility-bar">
+      <div class="vis-buttons">
+        <button onclick={() => { for (const k in visibility) visibility[k] = true; }}>All</button>
+        <button onclick={() => { for (const k in visibility) visibility[k] = false; }}>None</button>
+        <button onclick={() => { for (const k in visibility) visibility[k] = !visibility[k]; }}>Invert</button>
+      </div>
       {#each Object.entries(visibility) as [key, val]}
         <label class="vis-toggle">
           <input type="checkbox" bind:checked={visibility[key]} />
@@ -306,6 +307,21 @@
     accent-color: #60a5fa;
     margin: 0;
   }
+  .vis-buttons {
+    display: flex;
+    gap: 4px;
+    margin-right: 8px;
+  }
+  .vis-buttons button {
+    padding: 2px 8px;
+    background: #334155;
+    border: none;
+    border-radius: 3px;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .vis-buttons button:hover { background: #475569; }
 
   @media (max-width: 1024px) {
     .app { flex-direction: column; height: auto; }

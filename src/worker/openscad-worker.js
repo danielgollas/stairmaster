@@ -1,25 +1,23 @@
 import { createOpenSCAD } from 'openscad-wasm';
 
-let openscad = null;
-
-async function init() {
-  if (openscad) return openscad;
-  openscad = await createOpenSCAD({ noInitialRun: true });
-  return openscad;
-}
+// Warm up: create first instance to cache the WASM module
+let warmPromise = createOpenSCAD({ noInitialRun: true });
 
 self.onmessage = async function (e) {
   const { type, scadSource, id } = e.data;
 
   if (type === 'render') {
     try {
-      // Create a fresh instance for each render since callMain can only be called once
-      const scad = await createOpenSCAD({ noInitialRun: true });
-      const inst = scad.getInstance();
+      // Ensure WASM module is cached from warmup
+      await warmPromise;
 
-      inst.FS.writeFile('/input.scad', scadSource);
-      inst.callMain(['/input.scad', '--enable=manifold', '-o', '/output.stl']);
-      const stlData = inst.FS.readFile('/output.stl');
+      // Create fresh instance (fast after first — WASM module is cached)
+      const scad = await createOpenSCAD({ noInitialRun: true });
+      const result = await scad.renderToStl(scadSource);
+
+      // renderToStl returns a string (ASCII STL), convert to ArrayBuffer
+      const encoder = new TextEncoder();
+      const stlData = encoder.encode(result);
 
       self.postMessage({
         type: 'result',
@@ -37,8 +35,8 @@ self.onmessage = async function (e) {
   }
 };
 
-// Signal ready after first init succeeds (proves WASM loads)
-init().then(() => {
+// Signal ready after warmup
+warmPromise.then(() => {
   self.postMessage({ type: 'ready' });
 }).catch((err) => {
   self.postMessage({ type: 'init-error', error: err.message || String(err) });

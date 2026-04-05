@@ -68,9 +68,11 @@ describe('generateScad', () => {
 
   it('includes color assignments for different materials', () => {
     const scad = generateScad(params);
-    expect(scad).toContain('concrete_color = [0.6, 0.6, 0.6]');
-    expect(scad).toContain('pt_lumber_color');
+    expect(scad).toContain('concrete_color');
+    expect(scad).toContain('stringer_color');
     expect(scad).toContain('hardware_color');
+    expect(scad).toContain('decking_color');
+    expect(scad).toContain('post_color');
   });
 
   it('uses the correct number of stringers', () => {
