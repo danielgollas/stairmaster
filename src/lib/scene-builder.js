@@ -402,6 +402,12 @@ function buildDimensions(p) {
  * Build the stringer 2D profile as a Three.js Shape.
  * Shape is in XY plane: x = horizontal run, y = vertical rise.
  * Counter-clockwise winding (required by Three.js for outer contour).
+ *
+ * Profile viewed from the side:
+ *   - Bottom edge runs diagonally along the stair slope (uncut board edge)
+ *   - Top edge has sawtooth notches
+ *   - Seat cut at bottom (L-shape: horizontal bearing + vertical plumb toe)
+ *   - Plumb cut at top (vertical, bears against rim joist)
  */
 function buildStringerShape(p) {
   const rise = p.actualRiserHeight;
@@ -411,61 +417,53 @@ function buildStringerShape(p) {
   const sw = p.stringerStockWidth;
   const topReduce = p.topTreadReduction;
   const hyp = Math.sqrt(rise * rise + run * run);
-  const px = sw * rise / hyp;
-  const pz = sw * run / hyp;
+  // Perpendicular offset from top edge to bottom edge
+  const px = sw * rise / hyp;  // x offset (left)
+  const py = sw * run / hyp;   // y offset (down)
 
-  const shape = new THREE.Shape();
+  // Counter-clockwise: interior on the left as you trace the path.
+  // Start at seat plumb toe bottom, go up and right through sawtooth,
+  // then back down along the bottom board edge.
+  const pts = [];
 
-  // Counter-clockwise: seat bottom → plumb toe up → sawtooth left-to-right →
-  // top plumb → bottom edge right-to-left → close
+  // 1. Seat cut area: plumb toe bottom → plumb toe top → seat surface right
+  pts.push([-px, -py]);            // bottom of plumb toe (= bottom-left of board)
+  pts.push([0, -drop]);            // top of plumb toe
+  pts.push([run, -drop]);          // seat surface right → first riser bottom
 
-  // Start at seat: bottom of plumb toe
-  shape.moveTo(0, -pz);
+  // 2. Sawtooth: left to right (going up)
+  // First riser up
+  pts.push([run, rise - drop]);    // first riser top
 
-  // Plumb toe up to seat surface
-  shape.lineTo(0, -drop);
-
-  // Sawtooth: left to right (bottom tread up to top tread)
-  // First tread
-  if (n >= 1) {
-    shape.lineTo(run, -drop);        // first riser bottom-right
-    shape.lineTo(run, rise - drop);  // first riser top
-  }
-
-  // Middle treads
+  // Middle treads (second through second-to-last)
   for (let i = 1; i < n - 1; i++) {
-    const treadLeft = i * run;
-    const riserBottomY = i * rise - drop;
-    const treadY = (i + 1) * rise - drop;
-    shape.lineTo(treadLeft, riserBottomY);   // inside corner
-    shape.lineTo((i + 1) * run, riserBottomY);  // tread right end at riser bottom
-    shape.lineTo((i + 1) * run, treadY);        // riser top
+    // tread surface to the right, then riser up
+    pts.push([(i + 1) * run, i * rise - drop]);       // tread right = next riser bottom
+    pts.push([(i + 1) * run, (i + 1) * rise - drop]); // riser top
   }
 
-  // Top tread (shortened by riser board thickness)
+  // Last tread (shortened by riser board thickness) + top plumb cut
   if (n >= 2) {
     const lastI = n - 1;
-    const lastTreadLeft = lastI * run;
-    const lastRiserBottom = lastI * rise - drop;
-    const lastTreadX = lastTreadLeft + (run - topReduce);
-    const lastTreadY = n * rise - drop;
-    shape.lineTo(lastTreadLeft, lastRiserBottom);  // inside corner
-    shape.lineTo(lastTreadX, lastRiserBottom);     // tread right
-    shape.lineTo(lastTreadX, lastTreadY);          // riser top
-  } else if (n === 1) {
-    // Only one tread — it's the top tread
-    const lastTreadX = run - topReduce;
-    shape.lineTo(lastTreadX, rise - drop);
+    const lastTreadX = lastI * run + (run - topReduce);
+    pts.push([lastTreadX, (n - 1) * rise - drop]);    // last tread right = last riser bottom
+    pts.push([lastTreadX, n * rise - drop]);           // last riser top
   }
 
-  // Top plumb cut
-  shape.lineTo(n * run, n * rise - drop);
+  // 3. Top plumb cut
+  pts.push([n * run, n * rise - drop]);                // top of stringer
 
-  // Bottom edge: right to left along slope (board's uncut bottom edge)
-  shape.lineTo(n * run - px, n * rise - drop - pz);
+  // 4. Bottom board edge: right to left (going back down along slope)
+  pts.push([n * run - px, n * rise - drop - py]);      // bottom-right of board
+  // Auto-closes to pts[0] = bottom-left of board
 
-  // Close to start
-  shape.lineTo(0, -pz);
+  // Build shape
+  const shape = new THREE.Shape();
+  shape.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) {
+    shape.lineTo(pts[i][0], pts[i][1]);
+  }
+  // Don't explicitly close — Three.js auto-closes Shape
 
   return shape;
 }

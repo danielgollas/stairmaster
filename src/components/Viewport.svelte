@@ -41,27 +41,32 @@
 
     if (viewMode === '3d') {
       camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 10000);
-      camera.position.set(-80, 60, 120);
+      camera.up.set(0, 0, 1);
+      camera.position.set(-40, -60, 40);
+      camera.lookAt(30, 18, 15);
     } else {
-      const frustum = 80;
+      const frustum = 40;
       const aspect = width / height;
       camera = new THREE.OrthographicCamera(
         -frustum * aspect, frustum * aspect,
         frustum, -frustum,
-        0.1, 10000
+        -10000, 10000
       );
       camera.up.set(0, 0, 1);
       if (viewMode === 'side') {
-        camera.position.set(60, -500, 15);
-        camera.lookAt(60, 0, 15);
+        // Exact side: look along +Y, camera on -Y side
+        camera.position.set(30, -100, 15);
+        camera.lookAt(30, 0, 15);
       } else if (viewMode === 'front') {
-        camera.position.set(-500, 18, 15);
+        // Exact front: look along +X, camera on -X side
+        camera.position.set(-100, 18, 15);
         camera.lookAt(0, 18, 15);
       }
     }
 
     if (controls) {
       controls.object = camera;
+      controls.up.set(0, 0, 1);
       controls.update();
     }
   }
