@@ -142,14 +142,16 @@ export function buildScene(p) {
 
   // --- Blocking ---
   const blockingGroup = new THREE.Group();
-  const blockH = p.stringerStockWidth * 0.5;
-  const blockZ = p.padAboveGrade + p.sillPlateThickness + blockH / 2;
+  // Blocking is 2x4 material: 1.5" thick x 3.5" tall, laid flat on sill plate
+  const blockThickness = 1.5;  // 2x4 thickness
+  const blockHeight = 3.5;     // 2x4 width (laid on edge)
+  const blockZ = p.padAboveGrade + p.sillPlateThickness + blockHeight / 2;
 
   for (let i = 0; i < p.numStringers - 1; i++) {
     const yStart = sillY + i * p.stringerOC + p.stringerStockThickness;
     const blockLen = p.stringerOC - p.stringerStockThickness;
-    const block = makeMesh(box(p.treadDepth, blockLen, blockH), COLORS.blocking);
-    block.position.set(p.treadDepth / 2, yStart + blockLen / 2, blockZ);
+    const block = makeMesh(box(blockThickness, blockLen, blockHeight), COLORS.blocking);
+    block.position.set(blockThickness / 2, yStart + blockLen / 2, blockZ);
     blockingGroup.add(block);
   }
 
@@ -371,14 +373,17 @@ function buildDimensions(p) {
     ));
   }
 
-  // A single tread depth (on the second step)
-  if (p.numTreads >= 2) {
-    const z = p.padAboveGrade + p.sillPlateThickness + 2 * p.actualRiserHeight - p.bottomDrop + p.deckingThickness + 2;
+  // Per-tread horizontal measurements (riser outer face to riser outer face)
+  for (let i = 0; i < p.numTreads; i++) {
+    const xFrom = i * p.treadDepth;
+    const xTo = (i + 1) * p.treadDepth;
+    const z = p.padAboveGrade + (i + 1) * p.actualRiserHeight + 2;  // slightly above tread
+    const label = `${p.treadDepth}" T${i + 1}`;
     group.add(makeDimLine(
-      [p.treadDepth, dimY, z],
-      [2 * p.treadDepth, dimY, z],
-      `${p.treadDepth}" tread`,
-      0x34d399
+      [xFrom, dimY, z],
+      [xTo, dimY, z],
+      label,
+      0x60a5fa
     ));
   }
 
@@ -460,12 +465,21 @@ function buildStringerShape(p) {
   pts.push([0, -drop]);                      // seat bearing to first riser (horizontal)
 
   // 2. Sawtooth: left to right (ascending)
+  // The stringer tread cut is shortened by riserBoardThickness — the riser board
+  // fits in the gap between the vertical face and the tread cut start.
+  // Tread boards overhang the front to cover the riser board.
+  const rb = p.riserBoardThickness;
   for (let i = 0; i < n; i++) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
-    const td = (i === n - 1) ? run - topReduce : run;
-    pts.push([riserX, treadY]);              // riser top
-    pts.push([riserX + td, treadY]);         // tread right end
+    const td = (i === n - 1) ? run - topReduce : run - rb;
+    pts.push([riserX, treadY]);              // riser top (vertical face)
+    pts.push([riserX + td, treadY]);         // tread right end (shortened)
+    // Fill the rb gap to the next riser face (stringer material remains here
+    // as a ledge for the next riser board to sit against)
+    if (i < n - 1) {
+      pts.push([(i + 1) * run, treadY]);     // horizontal to next riser face
+    }
   }
 
   // 3. Top plumb cut (vertical at x=topX)
