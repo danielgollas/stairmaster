@@ -205,10 +205,10 @@ export function buildScene(p) {
   const risersGroup = new THREE.Group();
 
   for (let i = 0; i < p.numTreads; i++) {
-    const x = i * p.treadDepth;
-    // Riser at x = i*treadDepth sits ON the stringer tread of the step BELOW.
-    // Bottom = notchZ(i-1) for i>0, or pad surface for the first riser.
-    // Top = flush with this step's stringer tread = notchZ(i).
+    // Riser sits ON the stringer tread of the step below, butting against
+    // the tread boards on its own step. Positioned one riserBoardThickness
+    // forward so its back face meets the tread board front edge.
+    const riserX = i * p.treadDepth - p.riserBoardThickness;
     const riserBottom = (i > 0) ? notchZ(i - 1) : p.padAboveGrade;
     const riserTop = notchZ(i);
     const riserH = riserTop - riserBottom;
@@ -218,7 +218,7 @@ export function buildScene(p) {
       const yStart = sillY + s * p.stringerOC + p.stringerStockThickness;
       const segLen = p.stringerOC - p.stringerStockThickness;
       const riser = makeMesh(box(p.riserBoardThickness, segLen, riserH), COLORS.riser);
-      riser.position.set(x + p.riserBoardThickness / 2, yStart + segLen / 2, riserBottom + riserH / 2);
+      riser.position.set(riserX + p.riserBoardThickness / 2, yStart + segLen / 2, riserBottom + riserH / 2);
       risersGroup.add(riser);
     }
   }
