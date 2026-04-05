@@ -206,10 +206,11 @@ export function buildScene(p) {
 
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
-    // Riser board sits ON its step's stringer tread cut.
-    // Top is flush with the next stringer tread cut above.
-    const riserBottom = notchZ(i);
-    const riserTop = (i < p.numTreads - 1) ? notchZ(i + 1) : (p.totalHeight - p.deckingThickness);
+    // Riser at x = i*treadDepth sits ON the stringer tread of the step BELOW.
+    // Bottom = notchZ(i-1) for i>0, or pad surface for the first riser.
+    // Top = flush with this step's stringer tread = notchZ(i).
+    const riserBottom = (i > 0) ? notchZ(i - 1) : p.padAboveGrade;
+    const riserTop = notchZ(i);
     const riserH = riserTop - riserBottom;
 
     // Riser boards are cut to fit BETWEEN stringers
