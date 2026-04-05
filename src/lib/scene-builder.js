@@ -201,15 +201,18 @@ export function buildScene(p) {
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
     // Riser goes from walking surface below up to BOTTOM of tread decking above.
-    // Bottom = padAbove + i * rise (pad surface for i=0, tread top for i>0)
-    // Top = padAbove + (i+1) * rise - deckingThickness (under the tread boards)
     const riserBottom = p.padAboveGrade + i * p.actualRiserHeight;
     const riserTop = p.padAboveGrade + (i + 1) * p.actualRiserHeight - p.deckingThickness;
     const riserH = riserTop - riserBottom;
 
-    const riser = makeMesh(box(p.riserBoardThickness, p.stairWidth, riserH), COLORS.riser);
-    riser.position.set(x + p.riserBoardThickness / 2, p.stairWidth / 2, riserBottom + riserH / 2);
-    risersGroup.add(riser);
+    // Riser boards are cut to fit BETWEEN stringers (not through them)
+    for (let s = 0; s < p.numStringers - 1; s++) {
+      const yStart = sillY + s * p.stringerOC + p.stringerStockThickness;
+      const segLen = p.stringerOC - p.stringerStockThickness;
+      const riser = makeMesh(box(p.riserBoardThickness, segLen, riserH), COLORS.riser);
+      riser.position.set(x + p.riserBoardThickness / 2, yStart + segLen / 2, riserBottom + riserH / 2);
+      risersGroup.add(riser);
+    }
   }
 
   meshes.risers = risersGroup;
