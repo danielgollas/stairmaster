@@ -189,8 +189,8 @@ export function buildScene(p) {
     // Tread boards overhang the front by rb to cover the riser below.
     // Top tread: back butts against rim joist at totalRun.
     const isTopTread = (i === p.numTreads - 1);
-    const topTdCalc = p.treadDepth - 3 * p.riserBoardThickness;
-    const rimFace = (p.numTreads - 1) * p.treadDepth + topTdCalc + p.riserBoardThickness;
+    const topTdCalc = p.treadDepth - 2 * p.riserBoardThickness;
+    const rimFace = (p.numTreads - 1) * p.treadDepth + topTdCalc;
     const treadStart = isTopTread
       ? rimFace - (boardW + gap + boardW)
       : x - p.riserBoardThickness;
@@ -243,9 +243,9 @@ export function buildScene(p) {
   meshes.stringerHangers = hangersGroup;
 
   // --- Rim joist ---
-  // Rim joist position accounts for the shorter top tread
-  const topTdScene = p.treadDepth - 3 * p.riserBoardThickness;
-  const rimX = (p.numTreads - 1) * p.treadDepth + topTdScene + p.riserBoardThickness;
+  // Rim joist face: end of last stringer tread cut (no extra gap — rim joist IS the riser)
+  const topTdScene = p.treadDepth - 2 * p.riserBoardThickness;
+  const rimX = (p.numTreads - 1) * p.treadDepth + topTdScene;
   const rimMesh = makeMesh(box(1.5, p.stairWidth, p.rimJoistWidth), COLORS.rimJoist);
   rimMesh.position.set(rimX + 0.75, p.stairWidth / 2, p.totalHeight - p.deckingThickness - p.rimJoistWidth / 2);
   meshes.rimJoist = rimMesh;
