@@ -186,12 +186,8 @@ export function buildScene(p) {
     const x = i * p.treadDepth;
     const nz = notchZ(i);
 
-    // Tread boards overhang the front to cover the riser board below.
-    // Top tread: shifted so back butts against rim joist face (at totalRun).
-    const isTopTread = (i === p.numTreads - 1);
-    const treadStart = isTopTread
-      ? p.totalRun - (boardW + gap + boardW)  // back board butts against rim joist
-      : x - p.riserBoardThickness;             // overhang covers riser below
+    // All tread boards overhang the front by rb to cover the riser below.
+    const treadStart = x - p.riserBoardThickness;
 
     const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
     front.position.set(treadStart + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
@@ -207,7 +203,8 @@ export function buildScene(p) {
   // --- Risers ---
   const risersGroup = new THREE.Group();
 
-  for (let i = 0; i < p.numTreads; i++) {
+  // numTreads-1 riser boards — the last step uses the rim joist as its riser
+  for (let i = 0; i < p.numTreads - 1; i++) {
     // Riser sits ON the stringer tread of the step below, butting against
     // the tread boards on its own step. Positioned one riserBoardThickness
     // forward so its back face meets the tread board front edge.
@@ -482,8 +479,7 @@ function buildStringerShape(p) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
     // All treads shortened by rb for the riser board space.
-    // Top tread is shortened by another rb because the rim joist acts as the riser.
-    const td = (i === n - 1) ? run - rb - rb : run - rb;
+    const td = run - rb;
     pts.push([riserX, treadY]);              // riser top (vertical face)
     pts.push([riserX + td, treadY]);         // tread right end (shortened)
     // Fill the rb gap to the next riser face (stringer material remains here
