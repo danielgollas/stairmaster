@@ -433,20 +433,18 @@ function buildStringerShape(p) {
   const botAtSeat = (-drop - offY) + offX * slopeRatio;   // y at x=0
   const botAtTop = botAtSeat + topX * slopeRatio;          // y at x=topX
 
-  // Seat cut: L-shape with plumb toe at negative x, horizontal bearing to x=0.
-  // The plumb toe x position = where the board bottom edge is at the seat level.
-  const toeX = -((-drop - botAtSeat) / slopeRatio);  // negative: to the left of x=0
-  const toeBot = botAtSeat + (-toeX) * slopeRatio;   // should equal -drop (on bottom edge)
+  // Seat cut: the stringer bottom is trimmed at the seat level.
+  // The plumb toe is a short vertical cut, then horizontal bearing to x=0.
+  // toeX = where the board bottom edge meets y = -drop (seat level)
+  const toeX = (-drop - botAtSeat) / slopeRatio;  // positive distance from x=0
 
   const pts = [];
 
-  // 1. Board bottom at plumb toe position
-  pts.push([toeX, botAtSeat]);
+  // 1. Plumb toe bottom: on the board bottom edge at the seat level
+  //    (the material below the seat is cut away)
+  pts.push([-toeX, -drop]);
 
-  // 2. Plumb toe: vertical up to seat level
-  pts.push([toeX, -drop]);
-
-  // 3. Seat bearing: horizontal to x=0 (where first riser starts)
+  // 2. Seat bearing: horizontal to x=0 (where first riser starts)
   pts.push([0, -drop]);
 
   // 4. Sawtooth: left to right (ascending)
@@ -462,7 +460,7 @@ function buildStringerShape(p) {
   pts.push([topX, topY]);       // top of plumb cut
   pts.push([topX, botAtTop]);   // bottom of plumb cut
 
-  // Auto-close: (topX, botAtTop) → (toeX, botAtSeat) = board bottom edge
+  // Auto-close: (topX, botAtTop) → (-toeX, -drop) = board bottom edge
 
   // Create shape
   const shape = new THREE.Shape();
