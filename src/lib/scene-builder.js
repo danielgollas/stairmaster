@@ -433,21 +433,14 @@ function buildStringerShape(p) {
   const botAtSeat = (-drop - offY) + offX * slopeRatio;   // y at x=0
   const botAtTop = botAtSeat + topX * slopeRatio;          // y at x=topX
 
-  // Seat cut: the stringer bottom is trimmed at the seat level.
-  // The plumb toe is a short vertical cut, then horizontal bearing to x=0.
-  // toeX = where the board bottom edge meets y = -drop (seat level)
-  const toeX = (-drop - botAtSeat) / slopeRatio;  // positive distance from x=0
-
   const pts = [];
 
-  // 1. Plumb toe bottom: on the board bottom edge at the seat level
-  //    (the material below the seat is cut away)
-  pts.push([-toeX, -drop]);
+  // 1. Seat cut: short horizontal bearing (3.5") + plumb toe
+  const seatLen = 3.5;  // bearing length on sill plate
+  pts.push([-seatLen, -drop]);      // plumb toe at seat level
+  pts.push([0, -drop]);             // seat right → first riser starts
 
-  // 2. Seat bearing: horizontal to x=0 (where first riser starts)
-  pts.push([0, -drop]);
-
-  // 4. Sawtooth: left to right (ascending)
+  // 2. Sawtooth: left to right (ascending)
   for (let i = 0; i < n; i++) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
@@ -456,11 +449,20 @@ function buildStringerShape(p) {
     pts.push([riserX + td, treadY]);         // tread right end
   }
 
-  // 5. Top plumb cut (vertical at x=topX)
+  // 3. Top plumb cut (vertical at x=topX)
   pts.push([topX, topY]);       // top of plumb cut
   pts.push([topX, botAtTop]);   // bottom of plumb cut
 
-  // Auto-close: (topX, botAtTop) → (-toeX, -drop) = board bottom edge
+  // 4. Board bottom edge back to seat: from (topX, botAtTop) to the seat area.
+  //    The bottom edge follows the slope. We need it to end at the seat level.
+  //    Where does the bottom edge meet y = -drop?
+  //    x_meet = (y=-drop - botAtSeat) / slopeRatio (from botAtSeat reference)
+  //    But we clip it at x = -seatLen for a clean seat.
+  //    Add the point where the bottom edge meets x = -seatLen:
+  const botAtToe = botAtSeat + (-seatLen) * slopeRatio;  // board bottom y at x=-seatLen
+  pts.push([-seatLen, botAtToe]);   // board bottom at plumb toe x
+
+  // Auto-close: (-seatLen, botAtToe) → (-seatLen, -drop) = plumb toe vertical cut
 
   // Create shape
   const shape = new THREE.Shape();
