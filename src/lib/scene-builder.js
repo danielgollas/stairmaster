@@ -186,15 +186,19 @@ export function buildScene(p) {
     const x = i * p.treadDepth;
     const nz = notchZ(i);
 
-    // Tread boards sit on the stringer tread cut, butt against this step's riser board,
-    // and overhang the front edge to cover the top of the riser board below.
-    const overhang = p.riserBoardThickness;
+    // Tread boards overhang the front to cover the riser board below.
+    // Top tread: shifted so back butts against rim joist face (at totalRun).
+    const isTopTread = (i === p.numTreads - 1);
+    const treadStart = isTopTread
+      ? p.totalRun - (boardW + gap + boardW)  // back board butts against rim joist
+      : x - p.riserBoardThickness;             // overhang covers riser below
+
     const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    front.position.set(x - overhang + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
+    front.position.set(treadStart + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
     treadsGroup.add(front);
 
     const back = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    back.position.set(x - overhang + boardW + gap + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
+    back.position.set(treadStart + boardW + gap + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
 
