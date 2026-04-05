@@ -189,16 +189,12 @@ export function buildScene(p) {
     // Tread boards sit on the stringer tread cut, butt against this step's riser board,
     // and overhang the front edge to cover the top of the riser board below.
     const overhang = p.riserBoardThickness;
-    const isTopTread = (i === p.numTreads - 1);
-    // Top tread's back board is narrower — it butts against the rim joist (final riser)
-    const backBoardW = isTopTread ? boardW - p.riserBoardThickness : boardW;
-
     const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
     front.position.set(x - overhang + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
     treadsGroup.add(front);
 
-    const back = makeMesh(box(backBoardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    back.position.set(x - overhang + boardW + gap + backBoardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
+    const back = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
+    back.position.set(x - overhang + boardW + gap + boardW / 2, p.stairWidth / 2, nz + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
 
@@ -385,12 +381,9 @@ function buildDimensions(p) {
   // Per-tread horizontal measurements (riser outer face to riser outer face)
   for (let i = 0; i < p.numTreads; i++) {
     const xFrom = i * p.treadDepth;
-    // Top tread is shorter — butts against rim joist (final riser)
-    const isTopTread = (i === p.numTreads - 1);
-    const td = isTopTread ? p.treadDepth - p.riserBoardThickness : p.treadDepth;
-    const xTo = xFrom + td;
+    const xTo = (i + 1) * p.treadDepth;
     const z = p.padAboveGrade + (i + 1) * p.actualRiserHeight + 2;
-    const label = `${td}" T${i + 1}`;
+    const label = `${p.treadDepth}" T${i + 1}`;
     group.add(makeDimLine(
       [xFrom, dimY, z],
       [xTo, dimY, z],
@@ -484,7 +477,7 @@ function buildStringerShape(p) {
   for (let i = 0; i < n; i++) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
-    const td = (i === n - 1) ? run - topReduce : run - rb;
+    const td = (i === n - 1) ? run - topReduce - rb : run - rb;
     pts.push([riserX, treadY]);              // riser top (vertical face)
     pts.push([riserX + td, treadY]);         // tread right end (shortened)
     // Fill the rb gap to the next riser face (stringer material remains here
