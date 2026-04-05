@@ -2,13 +2,13 @@
   import { onMount, onDestroy } from 'svelte';
   import * as THREE from 'three';
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-  import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
-  let { stlData = null, viewMode = 'side' } = $props();
-  let hasInitialFit = false;
+  let { sceneParams = null, visibility = {}, viewMode = 'side' } = $props();
 
   let canvas;
-  let renderer, scene, camera, controls, mesh;
+  let renderer, scene, camera, controls;
+  let componentMeshes = {};  // { name: THREE.Object3D }
+  let hasInitialFit = false;
 
   function setupScene() {
     renderer = new THREE.WebGLRenderer({ antialias: true, canvas, alpha: true });
@@ -49,14 +49,11 @@
         frustum, -frustum,
         0.1, 10000
       );
-      // Z is up in our model
       camera.up.set(0, 0, 1);
       if (viewMode === 'side') {
-        // Look along Y axis: see X (run) vs Z (height)
         camera.position.set(60, -500, 15);
         camera.lookAt(60, 0, 15);
       } else if (viewMode === 'front') {
-        // Look along -X axis from front of stairs: see Y (width) vs Z (height)
         camera.position.set(-500, 18, 15);
         camera.lookAt(0, 18, 15);
       }
@@ -68,51 +65,55 @@
     }
   }
 
-  function loadSTL(data) {
-    if (mesh) {
-      scene.remove(mesh);
-      mesh.geometry.dispose();
-      mesh.material.dispose();
-    }
+  function rebuildMeshes(params) {
+    // Dynamically import to avoid SSR issues
+    import('../lib/scene-builder.js').then(({ buildScene }) => {
+      // Remove old meshes
+      for (const name in componentMeshes) {
+        scene.remove(componentMeshes[name]);
+        // Dispose geometry/materials
+        componentMeshes[name].traverse((child) => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) child.material.dispose();
+        });
+      }
 
-    if (!data) return;
+      // Build new meshes
+      componentMeshes = buildScene(params);
 
-    const loader = new STLLoader();
-    const geometry = loader.parse(data);
-    geometry.computeVertexNormals();
+      // Add to scene with current visibility
+      for (const [name, mesh] of Object.entries(componentMeshes)) {
+        mesh.visible = visibility[name] !== false;
+        scene.add(mesh);
+      }
 
-    const material = new THREE.MeshPhongMaterial({
-      color: 0xc08020,
-      specular: 0x222222,
-      shininess: 20,
-      flatShading: false,
+      // Auto-fit camera on first build
+      if (!hasInitialFit) {
+        hasInitialFit = true;
+        const box = new THREE.Box3();
+        for (const mesh of Object.values(componentMeshes)) {
+          if (mesh.visible) box.expandByObject(mesh);
+        }
+        if (!box.isEmpty()) {
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          if (controls) {
+            controls.target.copy(center);
+            controls.update();
+          }
+          if (camera.isPerspectiveCamera) {
+            const maxDim = Math.max(size.x, size.y, size.z);
+            camera.position.set(
+              center.x - maxDim * 0.8,
+              center.y + maxDim * 0.6,
+              center.z + maxDim * 1.2
+            );
+          }
+        }
+      }
+
+      requestRender();
     });
-    mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
-
-    // Only auto-fit camera on first load, not on parameter changes
-    if (!hasInitialFit) {
-      hasInitialFit = true;
-      const box = new THREE.Box3().setFromObject(mesh);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-
-      if (controls) {
-        controls.target.copy(center);
-        controls.update();
-      }
-
-      if (camera.isPerspectiveCamera) {
-        camera.position.set(
-          center.x - maxDim * 0.8,
-          center.y + maxDim * 0.6,
-          center.z + maxDim * 1.2
-        );
-      }
-    }
-
-    requestRender();
   }
 
   let renderRequested = false;
@@ -160,12 +161,23 @@
     if (renderer) renderer.dispose();
   });
 
+  // Rebuild meshes when params change
   $effect(() => {
-    if (stlData && renderer) {
-      loadSTL(stlData);
+    if (sceneParams && renderer) {
+      rebuildMeshes(sceneParams);
     }
   });
 
+  // Update visibility instantly (no rebuild)
+  $effect(() => {
+    const vis = visibility;
+    for (const [name, mesh] of Object.entries(componentMeshes)) {
+      mesh.visible = vis[name] !== false;
+    }
+    requestRender();
+  });
+
+  // Update camera on view mode change
   $effect(() => {
     viewMode;
     if (renderer) {

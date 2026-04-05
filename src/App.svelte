@@ -27,9 +27,6 @@
   let stringerHanger = $state(DEFAULTS.stringerHanger);
 
   let viewMode = $state('side');
-  let stlData = $state(null);
-  let workerReady = $state(false);
-  let rendering = $state(false);
 
   // Visibility toggles
   let visibility = $state({
@@ -69,8 +66,8 @@
     riserVariance: 0,
   }));
 
-  // Shared params object for scad generation
-  let scadParams = $derived({
+  // Params for scene building and .scad generation
+  let sceneParams = $derived({
     totalHeight, topPostSpacing,
     numRisers: geometry.numRisers,
     actualRiserHeight: geometry.actualRiserHeight,
@@ -91,53 +88,8 @@
     postHeight: 42,
   });
 
-  // Full model for WASM rendering (always all components visible)
-  let renderScadSource = $derived(generateScad(scadParams));
-
-  // Visibility-filtered source for download only
-  let downloadScadSource = $derived(generateScad(scadParams, visibility));
-
-  // Web Worker
-  let worker;
-  let renderId = 0;
-  let debounceTimer = null;
-
-  $effect(() => {
-    worker = new Worker(
-      new URL('./worker/openscad-worker.js', import.meta.url),
-      { type: 'module' }
-    );
-    worker.onmessage = (e) => {
-      if (e.data.type === 'ready') {
-        workerReady = true;
-      } else if (e.data.type === 'result') {
-        // Only accept the latest render
-        if (e.data.id === renderId) {
-          stlData = e.data.stl;
-          rendering = false;
-        }
-      } else if (e.data.type === 'error') {
-        console.error('OpenSCAD error:', e.data.error);
-        rendering = false;
-      }
-    };
-    return () => { worker.terminate(); };
-  });
-
-  // Debounced render: only triggers on dimensional changes (renderScadSource),
-  // NOT on visibility toggles
-  $effect(() => {
-    const source = renderScadSource; // capture dependency — excludes visibility
-    const ready = workerReady;
-    if (!ready) return;
-
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      renderId++;
-      rendering = true;
-      worker.postMessage({ type: 'render', scadSource: source, id: renderId });
-    }, 600);
-  });
+  // .scad source for download (visibility-filtered)
+  let downloadScadSource = $derived(generateScad(sceneParams, visibility));
 
   function downloadScad() {
     const blob = new Blob([downloadScadSource], { type: 'text/plain' });
@@ -145,17 +97,6 @@
     const a = document.createElement('a');
     a.href = url;
     a.download = 'stairmaster.scad';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function downloadStl() {
-    if (!stlData) return;
-    const blob = new Blob([stlData], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'stairmaster.stl';
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -182,14 +123,7 @@
       </div>
       <div class="downloads">
         <button onclick={downloadScad}>⬇ .scad</button>
-        <button onclick={downloadStl} disabled={!stlData}>⬇ .stl</button>
       </div>
-      {#if rendering}
-        <span class="rendering">Rendering...</span>
-      {/if}
-      {#if !workerReady}
-        <span class="loading">Loading OpenSCAD WASM...</span>
-      {/if}
     </div>
     <div class="visibility-bar">
       <div class="vis-buttons">
@@ -204,7 +138,7 @@
         </label>
       {/each}
     </div>
-    <Viewport {stlData} {viewMode} />
+    <Viewport {sceneParams} {visibility} {viewMode} />
   </div>
 
   <div class="panel right">
@@ -284,15 +218,6 @@
     background: #60a5fa;
     color: #0f172a;
     font-weight: 600;
-  }
-  .downloads button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  .rendering, .loading {
-    font-size: 0.8em;
-    color: #fbbf24;
-    margin-left: auto;
   }
   .visibility-bar {
     display: flex;
