@@ -9,13 +9,13 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^3.0.0",
-    "svelte": "^4.0.0",
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "svelte": "^5.55.1",
     "vite": "^5.0.0",
     "vitest": "^1.0.0"
   },
   "dependencies": {
-    "three": "^0.160.0",
-    "openscad-wasm": "^0.0.4"
+    "openscad-wasm": "^0.0.4",
+    "three": "^0.160.0"
   }
 }
