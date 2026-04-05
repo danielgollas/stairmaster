@@ -461,7 +461,7 @@ function buildStringerShape(p) {
   const rb = p.riserBoardThickness;
   // Top plumb cut: end of last tread + rb gap for rim joist
   const topTd = run - 2 * rb;  // top tread stringer cut depth
-  const topX = (n - 1) * run + topTd + rb;  // plumb cut x = last tread end + rim joist space
+  const topX = (n - 1) * run + topTd;  // plumb cut x = rim joist face
   const topY = n * rise - drop;  // y at top of sawtooth
 
   // Board bottom edge: line through (-offX, -drop-offY) with slope rise/run.
