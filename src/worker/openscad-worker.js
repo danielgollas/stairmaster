@@ -8,16 +8,15 @@ self.onmessage = async function (e) {
 
   if (type === 'render') {
     try {
-      // Ensure WASM module is cached from warmup
       await warmPromise;
 
-      // Create fresh instance (fast after first — WASM module is cached)
+      // Fresh instance per render (callMain is one-shot, but WASM module is cached so this is fast)
       const scad = await createOpenSCAD({ noInitialRun: true });
-      const result = await scad.renderToStl(scadSource);
+      const inst = scad.getInstance();
 
-      // renderToStl returns a string (ASCII STL), convert to ArrayBuffer
-      const encoder = new TextEncoder();
-      const stlData = encoder.encode(result);
+      inst.FS.writeFile('/input.scad', scadSource);
+      inst.callMain(['/input.scad', '--enable=manifold', '-o', '/output.stl']);
+      const stlData = inst.FS.readFile('/output.stl');
 
       self.postMessage({
         type: 'result',
@@ -35,7 +34,6 @@ self.onmessage = async function (e) {
   }
 };
 
-// Signal ready after warmup
 warmPromise.then(() => {
   self.postMessage({ type: 'ready' });
 }).catch((err) => {

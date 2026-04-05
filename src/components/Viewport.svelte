@@ -49,17 +49,16 @@
         frustum, -frustum,
         0.1, 10000
       );
+      // Z is up in our model
+      camera.up.set(0, 0, 1);
       if (viewMode === 'side') {
-        // Look along -Y axis: camera at large +Y, looking at Y=0
-        // Model: X = run, Y = width, Z = height
-        camera.position.set(60, 500, 20);
-        camera.lookAt(60, 0, 20);
-        camera.up.set(0, 0, 1);  // Z is up
+        // Look along Y axis: see X (run) vs Z (height)
+        camera.position.set(60, -500, 15);
+        camera.lookAt(60, 0, 15);
       } else if (viewMode === 'front') {
-        // Look along +X axis: camera at large -X, looking at X=0
-        camera.position.set(-500, 18, 20);
-        camera.lookAt(0, 18, 20);
-        camera.up.set(0, 0, 1);  // Z is up
+        // Look along -X axis from front of stairs: see Y (width) vs Z (height)
+        camera.position.set(-500, 18, 15);
+        camera.lookAt(0, 18, 15);
       }
     }
 

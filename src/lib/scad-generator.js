@@ -88,7 +88,7 @@ ${deckSurfaceModule()}
 
 ${topPostsModule()}
 
-${staircaseModule(v)}
+${staircaseModule(v, p)}
 
 staircase();
 `;
@@ -170,69 +170,46 @@ module post_bases() {
 }
 
 function stringerModule() {
+  // Build stringer from cubes using difference() — avoids CGAL polygon issues
+  // The stringer is a rotated board with rectangular notches cut out
   return `
-module stringer(offset_y) {
+module stringer_at(offset_y) {
   rise = actual_riser;
   run = tread_depth;
-  angle = atan(rise / run);
+  angle = atan2(rise, run);
   hyp = sqrt(rise * rise + run * run);
-
-  // Perpendicular offset from top edge to bottom edge of board
-  perp_dx = -stringer_w * rise / hyp;   // x component (goes left/negative)
-  perp_dy = -stringer_w * run / hyp;    // y component (goes down/negative)
+  stair_run = num_treads * run;
+  stair_rise = num_treads * rise - bottom_drop;
+  board_len = sqrt(stair_rise * stair_rise + stair_run * stair_run) + stringer_w * 2;
 
   color(stringer_color)
   translate([0, offset_y, pad_above + sill_plate_h])
-  rotate([90, 0, 0]) {
-    linear_extrude(height = stringer_t) {
-      // Polygon in installed XY frame: x = horizontal run, y = vertical rise
-      // Trace clockwise: top edge left→right (sawtooth), then bottom edge right→left
+  difference() {
+    // Full board along stair slope
+    rotate([0, -angle, 0])
+      translate([-stringer_w, 0, 0])
+        cube([board_len, stringer_t, stringer_w]);
 
-      // === TOP EDGE (sawtooth) ===
-      // y=0 is the seat cut surface (sits on sill plate)
-      // Notches are offset down by bottom_drop so first finished riser = rise
-      top_edge = concat(
-        // Start at seat cut surface
-        [[0, 0]],
-        // Sawtooth notches — each tread level at (i+1)*rise - bottom_drop
-        [for (i = [0 : num_treads - 1])
-          let (
-            tread_y = (i + 1) * rise - bottom_drop,
-            prev_y = i == 0 ? 0 : i * rise - bottom_drop,
-            td = i == num_treads - 1 ? run - top_tread_reduction : run
-          )
-          each [
-            [i * run, prev_y],       // riser bottom (inside corner)
-            [i * run, tread_y],      // riser top
-            [i * run + td, tread_y]  // tread end
-          ]
-        ],
-        // Plumb cut at top: from last tread up to the top of the stringer
-        [[num_treads * run, num_treads * rise - bottom_drop]]
-      );
-
-      // === BOTTOM EDGE (uncut board edge, parallel to slope) ===
-      // The top of the stringer at (num_treads*run, num_treads*rise - bottom_drop)
-      // offset perpendicular by board width gives the bottom edge endpoints
-      top_x = num_treads * run;
-      top_y = num_treads * rise - bottom_drop;
-      tr_x = top_x + perp_dx;
-      tr_y = top_y + perp_dy;
-
-      // Bottom-left: offset from seat cut origin
-      bl_x = 0 + perp_dx;
-      bl_y = 0 + perp_dy;
-
-      // Seat cut: L-shape at bottom
-      // From bottom board edge (bl), horizontal level cut to x=0, then vertical plumb toe up to (0,0)
-      bottom_edge = [
-        [tr_x, tr_y],        // bottom of plumb cut at top
-        [bl_x, bl_y],        // bottom of board near seat
-        [0, bl_y],            // level cut: horizontal bearing surface
-      ];
-
-      polygon(concat(top_edge, bottom_edge));
+    // Cut notches: each is a cube at the tread/riser position
+    for (i = [0 : num_treads - 1]) {
+      td = i == num_treads - 1 ? run - top_tread_reduction : run;
+      tread_z = (i + 1) * rise - bottom_drop;
+      // Remove everything above each tread level, within the tread run
+      translate([i * run - 0.01, -0.01, tread_z])
+        cube([td + 0.02, stringer_t + 0.02, stringer_w + 10]);
     }
+
+    // Trim below seat cut (z < 0)
+    translate([-stringer_w * 3, -0.01, -stringer_w * 3])
+      cube([stair_run + stringer_w * 6, stringer_t + 0.02, stringer_w * 3]);
+
+    // Trim beyond top plumb cut (x > stair_run)
+    translate([stair_run, -0.01, -stringer_w])
+      cube([stringer_w * 3, stringer_t + 0.02, stair_rise + stringer_w * 6]);
+
+    // Trim behind seat (x < 0)
+    translate([-stringer_w * 3, -0.01, -stringer_w * 3])
+      cube([stringer_w * 3, stringer_t + 0.02, stair_rise + stringer_w * 6]);
   }
 }`;
 }
@@ -339,7 +316,7 @@ module top_posts() {
 }`;
 }
 
-function staircaseModule(v) {
+function staircaseModule(v, p) {
   return `
 module staircase() {
   ${v.grid ? 'floor_grid();' : ''}
@@ -352,7 +329,7 @@ module staircase() {
   ${v.stringers ? `// Stringers
   for (i = [0 : num_stringers - 1]) {
     y = (stair_width - top_post_spacing) / 2 + i * stringer_oc;
-    stringer(y);
+    stringer_at(y);
   }` : ''}
 
   ${v.blocking ? 'blocking();' : ''}

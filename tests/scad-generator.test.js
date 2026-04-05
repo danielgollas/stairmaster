@@ -51,7 +51,7 @@ describe('generateScad', () => {
       'module sill_plate',
       'module bottom_posts',
       'module post_bases',
-      'module stringer',
+      'module stringer_at',  // stringer built with difference()
       'module blocking',
       'module tension_ties',
       'module treads',
