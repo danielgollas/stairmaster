@@ -433,21 +433,16 @@ function buildStringerShape(p) {
   const botAtSeat = (-drop - offY) + offX * slopeRatio;   // y at x=0
   const botAtTop = botAtSeat + topX * slopeRatio;          // y at x=topX
 
-  // The board bottom at x=0 is at y=botAtSeat. The seat level is y=-drop.
-  // The plumb toe is a short vertical cut, only extending slightly below the seat.
-  const toeDepth = 1.5;  // how far below seat the plumb toe extends
-  const seatLen = 3.5;   // horizontal bearing on sill plate
+  // The seat bearing sits flush on the sill plate at y = -drop.
+  // Nothing extends below the seat level.
+  // Where does the board bottom edge meet y = -drop (seat level)?
+  const seatEndX = (-drop - botAtSeat) / slopeRatio;  // x where bottom edge meets seat level
 
   const pts = [];
 
-  // 1. Seat cut with short plumb toe (horizontal bottom)
-  // Where does the board bottom edge reach y = -drop - toeDepth?
-  const toeBottomY = -drop - toeDepth;
-  const toeBottomX = (toeBottomY - botAtSeat) / slopeRatio;  // x where bottom edge hits toe level
-  pts.push([toeBottomX, toeBottomY]);        // board bottom at toe level
-  pts.push([-seatLen, toeBottomY]);           // toe bottom horizontal (parallel to sill)
-  pts.push([-seatLen, -drop]);               // plumb toe vertical up to seat
-  pts.push([0, -drop]);                      // seat right → first riser
+  // 1. Seat cut: board bottom meets seat level, then horizontal bearing to first riser
+  pts.push([seatEndX, -drop]);               // board bottom meets seat level
+  pts.push([0, -drop]);                      // seat bearing to first riser (horizontal)
 
   // 2. Sawtooth: left to right (ascending)
   for (let i = 0; i < n; i++) {
@@ -462,7 +457,7 @@ function buildStringerShape(p) {
   pts.push([topX, topY]);       // top of plumb cut
   pts.push([topX, botAtTop]);   // bottom of plumb cut
 
-  // Auto-close: (topX, botAtTop) → (toeBottomX, toeBottomY) = board bottom edge
+  // Auto-close: (topX, botAtTop) → (seatEndX, -drop) = board bottom edge
 
   // Create shape
   const shape = new THREE.Shape();
