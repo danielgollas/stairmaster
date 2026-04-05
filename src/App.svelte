@@ -28,14 +28,24 @@
 
   let viewMode = $state('side');
 
-  // Visibility toggles
-  let visibility = $state({
-    grid: true, groundPlane: true, concretePad: true, sillPlate: true,
-    bottomPosts: true, postBases: true, stringers: true,
-    blocking: true, tensionTies: true, treads: true,
-    risers: true, stringerHangers: true, rimJoist: true,
-    deckSurface: true, topPosts: true,
-    dimensions: true,
+  // Visibility toggles (alphabetical, persisted to localStorage)
+  const defaultVisibility = {
+    blocking: true, bottomPosts: true, concretePad: true, deckSurface: true,
+    dimensions: true, grid: true, groundPlane: true, postBases: true,
+    rimJoist: true, risers: true, sillPlate: true, stringerHangers: true,
+    stringers: true, tensionTies: true, topPosts: true, treads: true,
+  };
+  function loadVisibility() {
+    try {
+      const saved = localStorage.getItem('stairmaster-visibility');
+      if (saved) return { ...defaultVisibility, ...JSON.parse(saved) };
+    } catch {}
+    return { ...defaultVisibility };
+  }
+  let visibility = $state(loadVisibility());
+  $effect(() => {
+    const vis = { ...visibility };
+    try { localStorage.setItem('stairmaster-visibility', JSON.stringify(vis)); } catch {}
   });
 
   // Computed geometry
@@ -132,7 +142,7 @@
         <button onclick={() => { for (const k in visibility) visibility[k] = false; }}>None</button>
         <button onclick={() => { for (const k in visibility) visibility[k] = !visibility[k]; }}>Invert</button>
       </div>
-      {#each Object.entries(visibility) as [key, val]}
+      {#each Object.keys(visibility).sort() as key}
         <label class="vis-toggle">
           <input type="checkbox" bind:checked={visibility[key]} />
           <span>{key.replace(/([A-Z])/g, ' $1').trim()}</span>
