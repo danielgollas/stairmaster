@@ -177,12 +177,14 @@ export function buildScene(p) {
     const x = i * p.treadDepth;
     const z = p.padAboveGrade + p.sillPlateThickness + (i + 1) * p.actualRiserHeight - p.bottomDrop;
 
+    // Tread boards sit behind the riser board
+    const treadX = x + p.riserBoardThickness;
     const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    front.position.set(x + boardW / 2, p.stairWidth / 2, z + p.deckingThickness / 2);
+    front.position.set(treadX + boardW / 2, p.stairWidth / 2, z + p.deckingThickness / 2);
     treadsGroup.add(front);
 
     const back = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
-    back.position.set(x + boardW + gap + boardW / 2, p.stairWidth / 2, z + p.deckingThickness / 2);
+    back.position.set(treadX + boardW + gap + boardW / 2, p.stairWidth / 2, z + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
 
@@ -431,14 +433,23 @@ function buildStringerShape(p) {
   const botAtSeat = (-drop - offY) + offX * slopeRatio;   // y at x=0
   const botAtTop = botAtSeat + topX * slopeRatio;          // y at x=topX
 
-  // Build points (CW = clockwise, which Three.js treats as CCW after rotateX(-PI/2))
+  // Seat cut: L-shape with plumb toe at negative x, horizontal bearing to x=0.
+  // The plumb toe x position = where the board bottom edge is at the seat level.
+  const toeX = -((-drop - botAtSeat) / slopeRatio);  // negative: to the left of x=0
+  const toeBot = botAtSeat + (-toeX) * slopeRatio;   // should equal -drop (on bottom edge)
+
   const pts = [];
 
-  // Seat: plumb toe (vertical at x=0)
-  pts.push([0, botAtSeat]);     // board bottom at seat (plumb toe bottom)
-  pts.push([0, -drop]);         // plumb toe top = seat bearing surface
+  // 1. Board bottom at plumb toe position
+  pts.push([toeX, botAtSeat]);
 
-  // Sawtooth: left to right (ascending)
+  // 2. Plumb toe: vertical up to seat level
+  pts.push([toeX, -drop]);
+
+  // 3. Seat bearing: horizontal to x=0 (where first riser starts)
+  pts.push([0, -drop]);
+
+  // 4. Sawtooth: left to right (ascending)
   for (let i = 0; i < n; i++) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
@@ -447,11 +458,11 @@ function buildStringerShape(p) {
     pts.push([riserX + td, treadY]);         // tread right end
   }
 
-  // Top plumb cut (vertical at x=topX)
-  pts.push([topX, topY]);       // top of plumb cut (= last sawtooth level)
-  pts.push([topX, botAtTop]);   // bottom of plumb cut (meets board bottom edge)
+  // 5. Top plumb cut (vertical at x=topX)
+  pts.push([topX, topY]);       // top of plumb cut
+  pts.push([topX, botAtTop]);   // bottom of plumb cut
 
-  // Auto-close: from (topX, botAtTop) back to (0, botAtSeat) = board bottom edge
+  // Auto-close: (topX, botAtTop) → (toeX, botAtSeat) = board bottom edge
 
   // Create shape
   const shape = new THREE.Shape();
