@@ -14,6 +14,7 @@
     concreteBelow = $bindable(),
     gravelDepth = $bindable(),
     padSideClearance = $bindable(),
+    padBackExtension = $bindable(),
     postBase = $bindable(),
     tensionTie = $bindable(),
     stringerHanger = $bindable(),
@@ -129,6 +130,10 @@
       <label>
         <span>Pad side clearance (in)</span>
         <input type="number" bind:value={padSideClearance} step="0.5" min="0" />
+      </label>
+      <label>
+        <span>Pad back extension (in)</span>
+        <input type="number" bind:value={padBackExtension} step="1" min="0" />
       </label>
     </div>
   {/if}

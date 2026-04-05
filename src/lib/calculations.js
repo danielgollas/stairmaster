@@ -74,16 +74,22 @@ export function computePadDimensions(params) {
   const {
     topPostSpacing,
     padSideClearance,
+    postSize,
     treadDepth,
     seatCutLength,
     padAboveGrade,
     concreteBelow,
     gravelDepth,
+    padBackExtension,
   } = params;
 
+  // Pad must be at least as wide as outer faces of bottom posts + clearance
+  const minWidth = topPostSpacing + 2 * (postSize || 3.5) + 2 * padSideClearance;
+  const padWidth = Math.max(minWidth, topPostSpacing + 2 * padSideClearance);
+
   return {
-    padWidth: topPostSpacing + 2 * padSideClearance,
-    padDepth: seatCutLength + treadDepth,
+    padWidth,
+    padDepth: seatCutLength + treadDepth + (padBackExtension || 0),
     concreteThickness: concreteBelow + padAboveGrade,
     excavationDepth: gravelDepth + concreteBelow,
   };

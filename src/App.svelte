@@ -22,6 +22,7 @@
   let concreteBelow = $state(DEFAULTS.concreteBelow);
   let gravelDepth = $state(DEFAULTS.gravelDepth);
   let padSideClearance = $state(DEFAULTS.padSideClearance);
+  let padBackExtension = $state(DEFAULTS.padBackExtension);
 
   let postBase = $state(DEFAULTS.postBase);
   let tensionTie = $state(DEFAULTS.tensionTie);
@@ -68,8 +69,10 @@
 
   let padDims = $derived(computePadDimensions({
     topPostSpacing, padSideClearance, treadDepth,
+    postSize: MATERIALS['4x4'].actual,
     seatCutLength: stringerProfile.seatCutLength,
     padAboveGrade, concreteBelow, gravelDepth,
+    padBackExtension,
   }));
 
   let warnings = $derived(checkIRC({
@@ -126,7 +129,7 @@
       bind:riserHeight bind:treadDepth bind:stringerOC bind:stringerPosition
       bind:deckingThickness bind:riserBoardThickness bind:rimJoistWidth
       bind:sillPlateThickness
-      bind:padAboveGrade bind:concreteBelow bind:gravelDepth bind:padSideClearance
+      bind:padAboveGrade bind:concreteBelow bind:gravelDepth bind:padSideClearance bind:padBackExtension
       bind:postBase bind:tensionTie bind:stringerHanger
     />
   </div>

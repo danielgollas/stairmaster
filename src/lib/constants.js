@@ -26,6 +26,7 @@ export const DEFAULTS = {
   concreteBelow: 3,
   gravelDepth: 6,
   padSideClearance: 2,
+  padBackExtension: 6,
 
   // Hardware
   postBase: 'Simpson ABA44Z',

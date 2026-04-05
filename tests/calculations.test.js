@@ -89,41 +89,48 @@ describe('computeStairGeometry', () => {
 });
 
 describe('computePadDimensions', () => {
-  it('computes pad width from post spacing + clearance', () => {
+  it('computes pad width to cover outer post faces + clearance', () => {
     const result = computePadDimensions({
       topPostSpacing: 36,
       padSideClearance: 2,
+      postSize: 3.5,
       treadDepth: 11.125,
       seatCutLength: 11.125,
       padAboveGrade: 1,
       concreteBelow: 3,
       gravelDepth: 6,
+      padBackExtension: 0,
     });
-    expect(result.padWidth).toBe(40);
+    // minWidth = 36 + 2*3.5 + 2*2 = 47
+    expect(result.padWidth).toBe(47);
   });
 
-  it('computes pad depth from seat cut + one tread depth', () => {
+  it('computes pad depth from seat cut + tread + back extension', () => {
     const result = computePadDimensions({
       topPostSpacing: 36,
       padSideClearance: 2,
+      postSize: 3.5,
       treadDepth: 11.125,
       seatCutLength: 11.125,
       padAboveGrade: 1,
       concreteBelow: 3,
       gravelDepth: 6,
+      padBackExtension: 6,
     });
-    expect(result.padDepth).toBeCloseTo(11.125 + 11.125, 4);
+    expect(result.padDepth).toBeCloseTo(11.125 + 11.125 + 6, 4);
   });
 
   it('computes concrete thickness and excavation depth', () => {
     const result = computePadDimensions({
       topPostSpacing: 36,
       padSideClearance: 2,
+      postSize: 3.5,
       treadDepth: 11.125,
       seatCutLength: 11.125,
       padAboveGrade: 1,
       concreteBelow: 3,
       gravelDepth: 6,
+      padBackExtension: 0,
     });
     expect(result.concreteThickness).toBe(4);
     expect(result.excavationDepth).toBe(9);
