@@ -189,8 +189,10 @@ export function buildScene(p) {
     // Tread boards overhang the front by rb to cover the riser below.
     // Top tread: back butts against rim joist at totalRun.
     const isTopTread = (i === p.numTreads - 1);
+    const topTdCalc = p.treadDepth - 3 * p.riserBoardThickness;
+    const rimFace = (p.numTreads - 1) * p.treadDepth + topTdCalc + p.riserBoardThickness;
     const treadStart = isTopTread
-      ? p.totalRun - (boardW + gap + boardW)
+      ? rimFace - (boardW + gap + boardW)
       : x - p.riserBoardThickness;
 
     const front = makeMesh(box(boardW, p.stairWidth, p.deckingThickness), COLORS.decking);
@@ -241,13 +243,16 @@ export function buildScene(p) {
   meshes.stringerHangers = hangersGroup;
 
   // --- Rim joist ---
+  // Rim joist position accounts for the shorter top tread
+  const topTdScene = p.treadDepth - 3 * p.riserBoardThickness;
+  const rimX = (p.numTreads - 1) * p.treadDepth + topTdScene + p.riserBoardThickness;
   const rimMesh = makeMesh(box(1.5, p.stairWidth, p.rimJoistWidth), COLORS.rimJoist);
-  rimMesh.position.set(p.totalRun + 0.75, p.stairWidth / 2, p.totalHeight - p.deckingThickness - p.rimJoistWidth / 2);
+  rimMesh.position.set(rimX + 0.75, p.stairWidth / 2, p.totalHeight - p.deckingThickness - p.rimJoistWidth / 2);
   meshes.rimJoist = rimMesh;
 
   // --- Deck surface ---
   const deckMesh = makeMesh(box(24, p.stairWidth + 12, p.deckingThickness), COLORS.decking);
-  deckMesh.position.set(p.totalRun + 12, p.stairWidth / 2, p.totalHeight - p.deckingThickness / 2);
+  deckMesh.position.set(rimX + 1.5 + 12, p.stairWidth / 2, p.totalHeight - p.deckingThickness / 2);
   meshes.deckSurface = deckMesh;
 
   // --- Top posts ---
@@ -255,11 +260,11 @@ export function buildScene(p) {
   const topPostZ = p.totalHeight - p.deckingThickness;
 
   const tlPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  tlPost.position.set(p.totalRun + 1.5 + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
+  tlPost.position.set(rimX + 1.5 + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
   topPostsGroup.add(tlPost);
 
   const trPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  trPost.position.set(p.totalRun + 1.5 + ps / 2, sillY + p.topPostSpacing + ps / 2, topPostZ + postH / 2);
+  trPost.position.set(rimX + 1.5 + ps / 2, sillY + p.topPostSpacing + ps / 2, topPostZ + postH / 2);
   topPostsGroup.add(trPost);
 
   meshes.topPosts = topPostsGroup;
@@ -453,11 +458,13 @@ function buildStringerShape(p) {
   const offX = sw * rise / hyp;
   const offY = sw * run / hyp;
 
-  const topX = n * run;    // x at top plumb cut (rim joist face)
+  const rb = p.riserBoardThickness;
+  // Top plumb cut: end of last tread + rb gap for rim joist
+  const topTd = run - 3 * rb;  // top tread stringer cut depth
+  const topX = (n - 1) * run + topTd + rb;  // plumb cut x = last tread end + rim joist space
   const topY = n * rise - drop;  // y at top of sawtooth
 
   // Board bottom edge: line through (-offX, -drop-offY) with slope rise/run.
-  // Compute where it intersects x=0 (seat plumb toe) and x=topX (top plumb cut).
   const slopeRatio = rise / run;
   const botAtSeat = (-drop - offY) + offX * slopeRatio;   // y at x=0
   const botAtTop = botAtSeat + topX * slopeRatio;          // y at x=topX
@@ -477,7 +484,6 @@ function buildStringerShape(p) {
   // The stringer tread cut is shortened by riserBoardThickness — the riser board
   // fits in the gap between the vertical face and the tread cut start.
   // Tread boards overhang the front to cover the riser board.
-  const rb = p.riserBoardThickness;
   for (let i = 0; i < n; i++) {
     const treadY = (i + 1) * rise - drop;
     const riserX = i * run;
