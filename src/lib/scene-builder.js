@@ -80,9 +80,11 @@ export function buildScene(p) {
   meshes.concretePad = padGroup;
 
   // --- Sill plate ---
+  // Sill plate needs to be deep enough to support the full stringer seat + first tread
   const sillY = (p.stairWidth - p.topPostSpacing) / 2;
-  const sillMesh = makeMesh(box(p.treadDepth, p.topPostSpacing, p.sillPlateThickness), COLORS.sillPlate);
-  sillMesh.position.set(padShift + p.treadDepth / 2, sillY + p.topPostSpacing / 2, p.padAboveGrade + p.sillPlateThickness / 2);
+  const sillDepth = p.treadDepth + p.riserBoardThickness;  // extends under seat + first tread area
+  const sillMesh = makeMesh(box(sillDepth, p.topPostSpacing, p.sillPlateThickness), COLORS.sillPlate);
+  sillMesh.position.set(padShift + sillDepth / 2, sillY + p.topPostSpacing / 2, p.padAboveGrade + p.sillPlateThickness / 2);
   meshes.sillPlate = sillMesh;
 
   // --- Bottom posts ---
@@ -216,7 +218,9 @@ export function buildScene(p) {
     // the tread boards on its own step. Positioned one riserBoardThickness
     // forward so its back face meets the tread board front edge.
     const riserX = i * p.treadDepth - p.riserBoardThickness;
-    const riserBottom = (i > 0) ? notchZ(i - 1) : p.padAboveGrade;
+    // Bottom riser sits on sill plate top, not pad surface
+    const sillTop = p.padAboveGrade + p.sillPlateThickness;
+    const riserBottom = (i > 0) ? notchZ(i - 1) : sillTop;
     const riserTop = notchZ(i);
     const riserH = riserTop - riserBottom;
 
