@@ -433,12 +433,17 @@ function buildStringerShape(p) {
   const botAtSeat = (-drop - offY) + offX * slopeRatio;   // y at x=0
   const botAtTop = botAtSeat + topX * slopeRatio;          // y at x=topX
 
+  // The board bottom at x=0 is at y=botAtSeat. The seat level is y=-drop.
+  // The plumb toe is a short vertical cut, only extending slightly below the seat.
+  const toeDepth = 1.5;  // how far below seat the plumb toe extends
+  const seatLen = 3.5;   // horizontal bearing on sill plate
+
   const pts = [];
 
-  // 1. Seat cut: short horizontal bearing (3.5") + plumb toe
-  const seatLen = 3.5;  // bearing length on sill plate
-  pts.push([-seatLen, -drop]);      // plumb toe at seat level
-  pts.push([0, -drop]);             // seat right → first riser starts
+  // 1. Seat cut with short plumb toe
+  pts.push([-seatLen, -drop - toeDepth]);   // plumb toe bottom
+  pts.push([-seatLen, -drop]);               // plumb toe top
+  pts.push([0, -drop]);                      // seat right → first riser
 
   // 2. Sawtooth: left to right (ascending)
   for (let i = 0; i < n; i++) {
@@ -453,16 +458,9 @@ function buildStringerShape(p) {
   pts.push([topX, topY]);       // top of plumb cut
   pts.push([topX, botAtTop]);   // bottom of plumb cut
 
-  // 4. Board bottom edge back to seat: from (topX, botAtTop) to the seat area.
-  //    The bottom edge follows the slope. We need it to end at the seat level.
-  //    Where does the bottom edge meet y = -drop?
-  //    x_meet = (y=-drop - botAtSeat) / slopeRatio (from botAtSeat reference)
-  //    But we clip it at x = -seatLen for a clean seat.
-  //    Add the point where the bottom edge meets x = -seatLen:
-  const botAtToe = botAtSeat + (-seatLen) * slopeRatio;  // board bottom y at x=-seatLen
-  pts.push([-seatLen, botAtToe]);   // board bottom at plumb toe x
-
-  // Auto-close: (-seatLen, botAtToe) → (-seatLen, -drop) = plumb toe vertical cut
+  // 4. Board bottom edge back to toe
+  //    From (topX, botAtTop) to (-seatLen, -drop-toeDepth)
+  //    This is the auto-close line = the uncut bottom edge of the board
 
   // Create shape
   const shape = new THREE.Shape();
