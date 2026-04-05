@@ -249,8 +249,9 @@ export function buildScene(p) {
   meshes.rimJoist = rimMesh;
 
   // --- Deck surface ---
+  // Deck boards are flush with the rim joist front face, extending back over the rim joist
   const deckMesh = makeMesh(box(24, p.stairWidth + 12, p.deckingThickness), COLORS.decking);
-  deckMesh.position.set(p.totalRun + 12, p.stairWidth / 2, p.totalHeight - p.deckingThickness / 2);
+  deckMesh.position.set(rimX + 12, p.stairWidth / 2, p.totalHeight - p.deckingThickness / 2);
   meshes.deckSurface = deckMesh;
 
   // --- Top posts ---
@@ -258,11 +259,11 @@ export function buildScene(p) {
   const topPostZ = p.totalHeight - p.deckingThickness;
 
   const tlPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  tlPost.position.set(p.totalRun + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
+  tlPost.position.set(rimX + 1.5 + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
   topPostsGroup.add(tlPost);
 
   const trPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  trPost.position.set(p.totalRun + ps / 2, sillY + p.topPostSpacing + ps / 2, topPostZ + postH / 2);
+  trPost.position.set(rimX + 1.5 + ps / 2, sillY + p.topPostSpacing + ps / 2, topPostZ + postH / 2);
   topPostsGroup.add(trPost);
 
   meshes.topPosts = topPostsGroup;
