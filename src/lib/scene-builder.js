@@ -99,12 +99,14 @@ export function buildScene(p) {
   const leftPostY = sillY - ps;
   const rightPostY = sillY + p.topPostSpacing;
 
+  // Posts aligned with sill plate start — left face at padShift
+  const postX = padShift + ps / 2;
   const lPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  lPost.position.set(padShift - ps / 2, leftPostY + ps / 2, postBaseZ + postH / 2);
+  lPost.position.set(postX, leftPostY + ps / 2, postBaseZ + postH / 2);
   postGroup.add(lPost);
 
   const rPost = makeMesh(box(ps, ps, postH), COLORS.post);
-  rPost.position.set(padShift - ps / 2, rightPostY + ps / 2, postBaseZ + postH / 2);
+  rPost.position.set(postX, rightPostY + ps / 2, postBaseZ + postH / 2);
   postGroup.add(rPost);
 
   meshes.bottomPosts = postGroup;
@@ -115,11 +117,11 @@ export function buildScene(p) {
   const plateSize = ps + 1;
 
   const lBase = makeMesh(box(plateSize, plateSize, plateH), COLORS.hardware);
-  lBase.position.set(padShift - ps / 2, leftPostY + ps / 2, postBaseZ - plateH / 2);
+  lBase.position.set(postX, leftPostY + ps / 2, postBaseZ - plateH / 2);
   basesGroup.add(lBase);
 
   const rBase = makeMesh(box(plateSize, plateSize, plateH), COLORS.hardware);
-  rBase.position.set(padShift - ps / 2, rightPostY + ps / 2, postBaseZ - plateH / 2);
+  rBase.position.set(postX, rightPostY + ps / 2, postBaseZ - plateH / 2);
   basesGroup.add(rBase);
 
   meshes.postBases = basesGroup;
@@ -158,8 +160,10 @@ export function buildScene(p) {
   for (let i = 0; i < p.numStringers - 1; i++) {
     const yStart = sillY + i * p.stringerOC + p.stringerStockThickness;
     const blockLen = p.stringerOC - p.stringerStockThickness;
+    // Blocking left face aligns with post right face
+    const blockX = padShift + ps + blockThickness / 2;
     const block = makeMesh(box(blockThickness, blockLen, blockHeight), COLORS.blocking);
-    block.position.set(padShift + blockThickness / 2, yStart + blockLen / 2, blockZ);
+    block.position.set(blockX, yStart + blockLen / 2, blockZ);
     blockingGroup.add(block);
   }
 
@@ -170,12 +174,14 @@ export function buildScene(p) {
   const tieW = 0.25, tieD = 3, tieH = 6;
   const tieZ = p.padAboveGrade + p.sillPlateThickness + tieH / 2;
 
+  // Tension ties at the blocking/post interface — bolt through posts into blocking
+  const tieX = padShift + ps + tieW / 2;  // on the blocking face (post right face)
   const lTie = makeMesh(box(tieW, tieD, tieH), COLORS.hardware);
-  lTie.position.set(padShift + tieW / 2, sillY + p.stringerStockThickness + tieD / 2, tieZ);
+  lTie.position.set(tieX, sillY + p.stringerStockThickness + tieD / 2, tieZ);
   tiesGroup.add(lTie);
 
   const rTie = makeMesh(box(tieW, tieD, tieH), COLORS.hardware);
-  rTie.position.set(padShift + tieW / 2, sillY + p.topPostSpacing - p.stringerStockThickness - tieD / 2, tieZ);
+  rTie.position.set(tieX, sillY + p.topPostSpacing - p.stringerStockThickness - tieD / 2, tieZ);
   tiesGroup.add(rTie);
 
   meshes.tensionTies = tiesGroup;
