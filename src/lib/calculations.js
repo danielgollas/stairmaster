@@ -10,14 +10,18 @@ export function computeStairGeometry(params) {
     treadDepth,
     stringerOC,
     stringerStockWidth,
+    padAboveGrade,
   } = params;
 
-  const numRisers = Math.round(totalHeight / riserHeight);
-  const actualRiserHeight = totalHeight / numRisers;
+  // Effective stair rise: from pad surface to deck top.
+  // The pad sits padAboveGrade above grade; that's the landing surface.
+  const effectiveRise = totalHeight - padAboveGrade;
+  const numRisers = Math.round(effectiveRise / riserHeight);
+  const actualRiserHeight = effectiveRise / numRisers;
   const numTreads = numRisers - 1;
   const totalRun = numTreads * treadDepth;
-  const stairAngle = Math.atan(totalHeight / totalRun) * (180 / Math.PI);
-  const stringerLength = Math.sqrt(totalHeight * totalHeight + totalRun * totalRun);
+  const stairAngle = Math.atan(effectiveRise / totalRun) * (180 / Math.PI);
+  const stringerLength = Math.sqrt(effectiveRise * effectiveRise + totalRun * totalRun);
   const stairWidth = topPostSpacing;
   const numStringers = Math.ceil(stairWidth / stringerOC) + 1;
 
@@ -78,9 +82,10 @@ export function computeStringerProfile(params) {
     stringerStockWidth,
   } = params;
 
-  // Bottom drop: accounts for tread thickness, sill plate raising the stringer,
-  // and pad above grade raising the landing surface
-  const bottomDrop = deckingThickness + sillPlateThickness - padAboveGrade;
+  // Bottom drop: the stringer's first riser cut is shortened so the finished
+  // bottom riser (pad surface → first tread decking top) equals actualRiserHeight.
+  // The sill plate raises the stringer; tread decking adds height on top.
+  const bottomDrop = deckingThickness + sillPlateThickness;
 
   // Top tread cut is shortened by riser board thickness
   const topTreadReduction = riserBoardThickness;

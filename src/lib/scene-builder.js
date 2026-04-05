@@ -343,15 +343,32 @@ function buildDimensions(p) {
     0x60a5fa
   ));
 
-  // A single riser height (on the second step for visibility)
-  if (p.numTreads >= 2) {
-    const riserX = p.treadDepth + 2;
-    const z1 = p.padAboveGrade + p.sillPlateThickness + p.actualRiserHeight - p.bottomDrop;
-    const z2 = z1 + p.actualRiserHeight;
+  // Per-riser height labels (finished surface to surface)
+  const riserDimX = -6;
+  // Bottom riser: pad surface → first tread decking top
+  const padSurface = p.padAboveGrade;
+  for (let i = 0; i < p.numRisers; i++) {
+    let zFrom, zTo, label;
+    if (i === 0) {
+      // Bottom riser: pad surface to first tread top
+      zFrom = padSurface;
+      zTo = p.padAboveGrade + p.sillPlateThickness + p.actualRiserHeight - p.bottomDrop + p.deckingThickness;
+      label = `${(zTo - zFrom).toFixed(2)}" R1`;
+    } else if (i < p.numTreads) {
+      // Middle risers: tread top to tread top
+      zFrom = p.padAboveGrade + p.sillPlateThickness + i * p.actualRiserHeight - p.bottomDrop + p.deckingThickness;
+      zTo = p.padAboveGrade + p.sillPlateThickness + (i + 1) * p.actualRiserHeight - p.bottomDrop + p.deckingThickness;
+      label = `${(zTo - zFrom).toFixed(2)}" R${i + 1}`;
+    } else {
+      // Top riser: last tread top to deck top
+      zFrom = p.padAboveGrade + p.sillPlateThickness + p.numTreads * p.actualRiserHeight - p.bottomDrop + p.deckingThickness;
+      zTo = p.totalHeight;
+      label = `${(zTo - zFrom).toFixed(2)}" R${i + 1}`;
+    }
     group.add(makeDimLine(
-      [riserX, dimY, z1 + p.deckingThickness],
-      [riserX, dimY, z2 + p.deckingThickness],
-      `${p.actualRiserHeight.toFixed(2)}" riser`,
+      [riserDimX, dimY, zFrom],
+      [riserDimX, dimY, zTo],
+      label,
       0x34d399
     ));
   }

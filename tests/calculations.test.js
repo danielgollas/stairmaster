@@ -22,12 +22,14 @@ describe('computeStairGeometry', () => {
 
   it('computes number of risers by rounding totalHeight / target riser', () => {
     const result = computeStairGeometry(base);
+    // effectiveRise = 96 - 1 = 95, 95/7.5 = 12.67 → 13
     expect(result.numRisers).toBe(13);
   });
 
-  it('computes actual riser height as totalHeight / numRisers', () => {
+  it('computes actual riser height from effective rise', () => {
     const result = computeStairGeometry(base);
-    expect(result.actualRiserHeight).toBeCloseTo(96 / 13, 4);
+    // effectiveRise = 95, 95/13 = 7.3077
+    expect(result.actualRiserHeight).toBeCloseTo(95 / 13, 4);
   });
 
   it('computes numTreads as numRisers - 1', () => {
@@ -42,14 +44,14 @@ describe('computeStairGeometry', () => {
 
   it('computes stair angle in degrees', () => {
     const result = computeStairGeometry(base);
-    const expectedAngle = Math.atan(96 / (12 * 11.125)) * (180 / Math.PI);
+    const expectedAngle = Math.atan(95 / (12 * 11.125)) * (180 / Math.PI);
     expect(result.stairAngle).toBeCloseTo(expectedAngle, 2);
   });
 
   it('computes stringer length as hypotenuse', () => {
     const result = computeStairGeometry(base);
     const totalRun = 12 * 11.125;
-    const expectedLength = Math.sqrt(96 * 96 + totalRun * totalRun);
+    const expectedLength = Math.sqrt(95 * 95 + totalRun * totalRun);
     expect(result.stringerLength).toBeCloseTo(expectedLength, 2);
   });
 
@@ -66,15 +68,16 @@ describe('computeStairGeometry', () => {
 
   it('computes throat depth to expected value', () => {
     const result = computeStairGeometry(base);
-    const rise = 96 / 13;
+    const rise = 95 / 13;
     const run = 11.125;
     const expectedNotchDepth = (rise * run) / Math.sqrt(rise * rise + run * run);
     const expectedThroat = 11.25 - expectedNotchDepth;
     expect(result.throat).toBeCloseTo(expectedThroat, 3);
   });
 
-  it('handles exact division of totalHeight by riserHeight', () => {
-    const exact = { ...base, totalHeight: 75, riserHeight: 7.5 };
+  it('handles exact division of effective rise by riserHeight', () => {
+    // effectiveRise = 76 - 1 = 75, 75/7.5 = 10
+    const exact = { ...base, totalHeight: 76, riserHeight: 7.5 };
     const result = computeStairGeometry(exact);
     expect(result.numRisers).toBe(10);
     expect(result.actualRiserHeight).toBe(7.5);
@@ -136,8 +139,8 @@ describe('computeStringerProfile', () => {
       stringerStockWidth: 11.25,
     });
     expect(profile.notches).toHaveLength(3);
-    // bottomDrop = deckingThickness + sillPlateThickness - padAboveGrade = 1.5 + 1.5 - 1 = 2.0
-    expect(profile.bottomDrop).toBe(2.0);
+    // bottomDrop = deckingThickness + sillPlateThickness = 1.5 + 1.5 = 3.0
+    expect(profile.bottomDrop).toBe(3.0);
     expect(profile.topTreadReduction).toBe(1.5);
   });
 });
