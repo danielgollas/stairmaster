@@ -8,7 +8,7 @@
 
   let canvas;
   let renderer, scene, camera, controls;
-  let currentMeshes = $state({});
+  let currentMeshes = {};
   let hasInitialFit = false;
 
   function setupScene() {
@@ -172,10 +172,13 @@
   });
 
   // Update visibility instantly (no rebuild)
+  // Only depends on `visibility` prop — reads currentMeshes imperatively
   $effect(() => {
     const vis = visibility;
-    const meshes = currentMeshes;
-    for (const [name, mesh] of Object.entries(meshes)) {
+    // Touch all visibility values to register as dependencies
+    Object.values(vis);
+    // Apply to current meshes (plain object, not reactive)
+    for (const [name, mesh] of Object.entries(currentMeshes)) {
       mesh.visible = vis[name] !== false;
     }
     requestRender();
