@@ -169,13 +169,10 @@ export function buildScene(p) {
     const offX = boardW * rise / hyp;
     const offY = boardW * run / hyp;
 
-    // Bottom edge: throat distance below the notch corner line (same as stringer)
+    // Bottom edge: same as stringer — full sw below tread tip line
     const slopeRatio = rise / run;
-    const notchDepthBoard = (rise * (run - rb)) / hyp;
-    const throatBoard = boardW - notchDepthBoard;
-    const throatOffX = throatBoard * rise / hyp;
-    const throatOffY = throatBoard * run / hyp;
-    const botAtSeat = -throatOffY + throatOffX * slopeRatio;
+    const tipLineY0 = (rise - drop) - (run - rb) * slopeRatio;
+    const botAtSeat = tipLineY0 - offY + offX * slopeRatio;
 
     // Board bottom-left corner at (0, botAtSeat)
     // Board extends along the slope for boardLen
@@ -602,22 +599,22 @@ function buildStringerShape(p) {
   const topX = (n - 1) * run + topTd + rb;  // plumb cut x
   const topY = notchY(n - 1);  // top of sawtooth
 
-  // The notch inside corners lie on the slope line through (0, 0) with slope rise/run.
-  // The notch depth (perpendicular from tread tip to inside corner) = (rise*run)/hyp.
-  // The board bottom edge is sw - notchDepth below the inside corners (perpendicular).
-  // This puts the tread tips exactly at the board's top edge.
+  // Board uses FULL 2x12 width. Sawtooth tips at the board's top edge.
+  // Bottom edge = full sw perpendicular below the tread tip line.
+  //
+  // Tread tips lie on a line through (run-rb, rise-drop) with slope rise/run.
+  // The perpendicular offset DOWN from this line by sw gives the bottom edge.
   const hyp = Math.sqrt(rise * rise + run * run);
   const slopeRatio = rise / run;
-  const notchDepth = (rise * (run - rb)) / hyp;  // perpendicular depth of notch
-  const throat = sw - notchDepth;                 // remaining wood
 
-  // Bottom edge offset: full board width perpendicular from tread tips
-  // = (sw) perpendicular from tread tip line
-  // = (throat) perpendicular from notch corner line (slope through (0,0))
-  // Use throat offset from the inside corner line for simpler math:
-  const offX = throat * rise / hyp;  // perpendicular offset from corner line
-  const offY = throat * run / hyp;
-  const botAtSeat = -offY + offX * slopeRatio;   // bottom edge y at x=0
+  // Tread tip line y at x=0:
+  const tipLineY0 = (rise - drop) - (run - rb) * slopeRatio;
+  // Perpendicular offset by sw: the offset point at x=0 is at:
+  //   (0 + sw*rise/hyp, tipLineY0 - sw*run/hyp) — that's the bottom edge at x=sw*rise/hyp
+  // To get bottom edge y at x=0, trace back along the slope:
+  const offX = sw * rise / hyp;
+  const offY = sw * run / hyp;
+  const botAtSeat = tipLineY0 - offY + offX * slopeRatio;
   const botAtTop = botAtSeat + topX * slopeRatio;
 
   // Where does board bottom edge meet y=0 (seat level)?
