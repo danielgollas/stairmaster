@@ -169,25 +169,25 @@ export function buildScene(p) {
     const offX = boardW * rise / hyp;
     const offY = boardW * run / hyp;
 
-    // Bottom edge: same as stringer — full sw below tread tip line
+    // Bottom edge: same as stringer — sw*hyp/run vertical below tread tip line
     const slopeRatio = rise / run;
     const tipLineY0 = (rise - drop) - (run - rb) * slopeRatio;
-    const botAtSeat = tipLineY0 - offY + offX * slopeRatio;
+    const vertOff = boardW * hyp / run;
+    const botAtSeat = tipLineY0 - vertOff;
 
     // Board bottom-left corner at (0, botAtSeat)
     // Board extends along the slope for boardLen
     const dx = boardLen * run / hyp;   // horizontal extent
     const dy = boardLen * rise / hyp;  // vertical extent
 
-    // Full board width perpendicular offset for top edge
-    const bOffX = boardW * rise / hyp;
-    const bOffY = boardW * run / hyp;
-
+    // Board is a parallelogram: bottom and top edges parallel at slope angle,
+    // perpendicular width = boardW, vertical offset = vertOff
+    // Left and right ends are plumb cuts (vertical)
     const boardShape = new THREE.Shape();
     boardShape.moveTo(0, botAtSeat);                              // bottom-left
     boardShape.lineTo(dx, botAtSeat + dy);                        // bottom-right
-    boardShape.lineTo(dx - bOffX, botAtSeat + dy + bOffY);        // top-right
-    boardShape.lineTo(-bOffX, botAtSeat + bOffY);                 // top-left
+    boardShape.lineTo(dx, botAtSeat + dy + vertOff);              // top-right (plumb cut)
+    boardShape.lineTo(0, botAtSeat + vertOff);                    // top-left (plumb cut)
 
     const boardGeo = new THREE.ExtrudeGeometry(boardShape, {
       depth: p.stringerStockThickness,
@@ -599,26 +599,21 @@ function buildStringerShape(p) {
   const topX = (n - 1) * run + topTd + rb;  // plumb cut x
   const topY = notchY(n - 1);  // top of sawtooth
 
-  // Board uses FULL 2x12 width. Sawtooth tips at the board's top edge.
-  // Bottom edge = full sw perpendicular below the tread tip line.
-  //
-  // Tread tips lie on a line through (run-rb, rise-drop) with slope rise/run.
-  // The perpendicular offset DOWN from this line by sw gives the bottom edge.
+  // Sawtooth tread tips ARE the board's top edge.
+  // Board bottom edge is sw perpendicular below = sw*hyp/run vertical below.
   const hyp = Math.sqrt(rise * rise + run * run);
   const slopeRatio = rise / run;
 
   // Tread tip line y at x=0:
   const tipLineY0 = (rise - drop) - (run - rb) * slopeRatio;
-  // Perpendicular offset by sw: the offset point at x=0 is at:
-  //   (0 + sw*rise/hyp, tipLineY0 - sw*run/hyp) — that's the bottom edge at x=sw*rise/hyp
-  // To get bottom edge y at x=0, trace back along the slope:
-  const offX = sw * rise / hyp;
-  const offY = sw * run / hyp;
-  const botAtSeat = tipLineY0 - offY + offX * slopeRatio;
-  const botAtTop = botAtSeat + topX * slopeRatio;
+  // Vertical distance for perpendicular offset of sw:
+  const vertOffset = sw * hyp / run;
+  // Bottom edge at any x: tipLineY0 + x*slopeRatio - vertOffset
+  const botAtX0 = tipLineY0 - vertOffset;
+  const botAtTop = botAtX0 + topX * slopeRatio;
 
   // Where does board bottom edge meet y=0 (seat level)?
-  const seatEndX = (0 - botAtSeat) / slopeRatio;
+  const seatEndX = (0 - botAtX0) / slopeRatio;
 
   const pts = [];
 
