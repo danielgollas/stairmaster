@@ -169,11 +169,11 @@ export function buildScene(p) {
     const offX = boardW * rise / hyp;
     const offY = boardW * run / hyp;
 
-    // Bottom edge: same as stringer — tipLine - sw*hyp/run
+    // Bottom edge: riser top line - sw*hyp/run (riser tops = board top edge)
     const slopeRatio = rise / run;
-    const tipLineY0 = -drop + rb * slopeRatio;
+    const topLineY0 = rise - drop;
     const boardVert = boardW * hyp / run;
-    const botAtSeat = tipLineY0 - boardVert;
+    const botAtSeat = topLineY0 - boardVert;
 
     // Board bottom-left corner at (0, botAtSeat)
     // Board extends along the slope for boardLen
@@ -597,16 +597,17 @@ function buildStringerShape(p) {
   const topX = (n - 1) * run + topTd + rb;  // plumb cut x
   const topY = notchY(n - 1);  // top of sawtooth
 
-  // Tread tips = board top edge. Bottom edge = sw perpendicular below.
-  // Plumb cuts at both ends extend from sawtooth down to bottom edge.
+  // Riser tops (highest points of sawtooth) = board top edge.
+  // Riser tops lie on line through (0, rise-drop) with slope rise/run.
+  // Bottom edge = sw perpendicular below.
   const hyp = Math.sqrt(rise * rise + run * run);
   const slopeRatio = rise / run;
 
-  // Tread tip line at x=0: tips lie on line through (run-rb, rise-drop) with slope rise/run
-  const tipLineY0 = -drop + rb * slopeRatio;
+  // Riser top line at x=0: y = rise - drop
+  const topLineY0 = rise - drop;
   // Board bottom edge = tip line - sw perpendicular = tip line - sw*hyp/run vertical
   const boardVertical = sw * hyp / run;
-  const botAtX0 = tipLineY0 - boardVertical;
+  const botAtX0 = topLineY0 - boardVertical;
   const botAtTop = botAtX0 + topX * slopeRatio;
 
   const pts = [];
