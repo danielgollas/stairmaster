@@ -169,21 +169,28 @@ export function buildScene(p) {
     const offX = boardW * rise / hyp;
     const offY = boardW * run / hyp;
 
-    // Bottom edge offset from tread tip line by full board width
+    // Bottom edge: throat distance below the notch corner line (same as stringer)
     const slopeRatio = rise / run;
-    const treadLineAtZero = -drop + rb * slopeRatio;
-    const botAtSeat = treadLineAtZero - offY + offX * slopeRatio;
+    const notchDepthBoard = (rise * (run - rb)) / hyp;
+    const throatBoard = boardW - notchDepthBoard;
+    const throatOffX = throatBoard * rise / hyp;
+    const throatOffY = throatBoard * run / hyp;
+    const botAtSeat = -throatOffY + throatOffX * slopeRatio;
 
     // Board bottom-left corner at (0, botAtSeat)
     // Board extends along the slope for boardLen
     const dx = boardLen * run / hyp;   // horizontal extent
     const dy = boardLen * rise / hyp;  // vertical extent
 
+    // Full board width perpendicular offset for top edge
+    const bOffX = boardW * rise / hyp;
+    const bOffY = boardW * run / hyp;
+
     const boardShape = new THREE.Shape();
-    boardShape.moveTo(0, botAtSeat);                           // bottom-left
-    boardShape.lineTo(dx, botAtSeat + dy);                     // bottom-right
-    boardShape.lineTo(dx - offX, botAtSeat + dy + offY);       // top-right (perpendicular offset)
-    boardShape.lineTo(-offX, botAtSeat + offY);                // top-left
+    boardShape.moveTo(0, botAtSeat);                              // bottom-left
+    boardShape.lineTo(dx, botAtSeat + dy);                        // bottom-right
+    boardShape.lineTo(dx - bOffX, botAtSeat + dy + bOffY);        // top-right
+    boardShape.lineTo(-bOffX, botAtSeat + bOffY);                 // top-left
 
     const boardGeo = new THREE.ExtrudeGeometry(boardShape, {
       depth: p.stringerStockThickness,
@@ -595,20 +602,22 @@ function buildStringerShape(p) {
   const topX = (n - 1) * run + topTd + rb;  // plumb cut x
   const topY = notchY(n - 1);  // top of sawtooth
 
-  // Board bottom edge: parallel to stair slope, offset by FULL board width
-  // from the tread tip line (the outside corners of the sawtooth).
-  // This keeps the full 2x12 width — notches are cut from the top.
+  // The notch inside corners lie on the slope line through (0, 0) with slope rise/run.
+  // The notch depth (perpendicular from tread tip to inside corner) = (rise*run)/hyp.
+  // The board bottom edge is sw - notchDepth below the inside corners (perpendicular).
+  // This puts the tread tips exactly at the board's top edge.
   const hyp = Math.sqrt(rise * rise + run * run);
-  const offX = sw * rise / hyp;  // perpendicular offset x-component
-  const offY = sw * run / hyp;   // perpendicular offset y-component
   const slopeRatio = rise / run;
+  const notchDepth = (rise * (run - rb)) / hyp;  // perpendicular depth of notch
+  const throat = sw - notchDepth;                 // remaining wood
 
-  // The tread tips lie on a line through (run-rb, rise-drop) with slope rise/run.
-  // At x=0: treadLineY = (rise-drop) - (run-rb) * slopeRatio = rise - drop - rise + rb*rise/run
-  //        = -drop + rb * slopeRatio
-  const treadLineAtZero = -drop + rb * slopeRatio;
-  // Bottom edge = tread line offset by full board width perpendicular
-  const botAtSeat = treadLineAtZero - offY + offX * slopeRatio;
+  // Bottom edge offset: full board width perpendicular from tread tips
+  // = (sw) perpendicular from tread tip line
+  // = (throat) perpendicular from notch corner line (slope through (0,0))
+  // Use throat offset from the inside corner line for simpler math:
+  const offX = throat * rise / hyp;  // perpendicular offset from corner line
+  const offY = throat * run / hyp;
+  const botAtSeat = -offY + offX * slopeRatio;   // bottom edge y at x=0
   const botAtTop = botAtSeat + topX * slopeRatio;
 
   // Where does board bottom edge meet y=0 (seat level)?
