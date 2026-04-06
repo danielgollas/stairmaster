@@ -172,10 +172,10 @@ export function buildScene(p) {
     // The board is a rectangle along the stair slope, boardLen long x boardW wide.
     // Bottom edge aligned with the stringer's bottom edge.
     //
-    // The stringer bottom edge at x=0 is at y = botAtSeat (computed in shape).
-    // Recompute here: botAtSeat = -offY + offX * (rise/run)
+    // Bottom edge offset from tread tip line by full board width
     const slopeRatio = rise / run;
-    const botAtSeat = -offY + offX * slopeRatio;
+    const treadLineAtZero = -drop + rb * slopeRatio;
+    const botAtSeat = treadLineAtZero - offY + offX * slopeRatio;
 
     // Board bottom-left corner at (0, botAtSeat)
     // Board extends along the slope for boardLen
@@ -598,17 +598,20 @@ function buildStringerShape(p) {
   const topX = (n - 1) * run + topTd + rb;  // plumb cut x
   const topY = notchY(n - 1);  // top of sawtooth
 
-  // Board bottom edge: parallel to stair slope, offset by board width
-  // The slope passes through notch inside corners. Slope = rise/run.
-  // A notch corner is at (0, 0) for the seat reference point.
-  // The perpendicular offset gives the bottom edge.
+  // Board bottom edge: parallel to stair slope, offset by FULL board width
+  // from the tread tip line (the outside corners of the sawtooth).
+  // This keeps the full 2x12 width — notches are cut from the top.
   const hyp = Math.sqrt(rise * rise + run * run);
-  const offX = sw * rise / hyp;
-  const offY = sw * run / hyp;
+  const offX = sw * rise / hyp;  // perpendicular offset x-component
+  const offY = sw * run / hyp;   // perpendicular offset y-component
   const slopeRatio = rise / run;
 
-  // Board bottom at x=0: offset from seat (0,0)
-  const botAtSeat = -offY + offX * slopeRatio;
+  // The tread tips lie on a line through (run-rb, rise-drop) with slope rise/run.
+  // At x=0: treadLineY = (rise-drop) - (run-rb) * slopeRatio = rise - drop - rise + rb*rise/run
+  //        = -drop + rb * slopeRatio
+  const treadLineAtZero = -drop + rb * slopeRatio;
+  // Bottom edge = tread line offset by full board width perpendicular
+  const botAtSeat = treadLineAtZero - offY + offX * slopeRatio;
   const botAtTop = botAtSeat + topX * slopeRatio;
 
   // Where does board bottom edge meet y=0 (seat level)?
