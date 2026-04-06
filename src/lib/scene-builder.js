@@ -164,14 +164,11 @@ export function buildScene(p) {
     const rise = p.actualRiserHeight;
     const run = p.treadDepth;
     const drop = p.bottomDrop;
+    const rb = p.riserBoardThickness;
     const hyp = Math.sqrt(rise * rise + run * run);
     const offX = boardW * rise / hyp;
     const offY = boardW * run / hyp;
 
-    // Build the board as a shape in XY (same frame as the stringer shape)
-    // The board is a rectangle along the stair slope, boardLen long x boardW wide.
-    // Bottom edge aligned with the stringer's bottom edge.
-    //
     // Bottom edge offset from tread tip line by full board width
     const slopeRatio = rise / run;
     const treadLineAtZero = -drop + rb * slopeRatio;
