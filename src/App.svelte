@@ -32,7 +32,7 @@
 
   // Visibility toggles (alphabetical, persisted to localStorage)
   const defaultVisibility = {
-    blocking: true, boardOverlay: false, bottomPosts: true, concretePad: true, deckSurface: true,
+    blocking: true, boardOverlay: false, bottomPosts: true, concretePad: true, deckSurface: true, measureGrid: false,
     dimensions: true, grid: true, groundPlane: true, postBases: true,
     rimJoist: true, risers: true, sillPlate: true, stringerHangers: true,
     stringers: true, tensionTies: true, topPosts: true, treads: true,

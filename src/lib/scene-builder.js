@@ -53,6 +53,65 @@ export function buildScene(p) {
   gridGroup.add(new THREE.LineSegments(gridGeo, gridMat));
   meshes.grid = gridGroup;
 
+  // --- Measure Grid (1" XZ grid for side view with numbers every 5") ---
+  const measureGridGroup = new THREE.Group();
+  {
+    // Determine extent: front of pad to back of deck
+    const topTdMG = p.treadDepth - 2 * p.riserBoardThickness;
+    const rimXMG = (p.numTreads - 1) * p.treadDepth + topTdMG + p.riserBoardThickness;
+    const padFrontMG = -p.riserBoardThickness - (p.seatCutLength + p.treadDepth) / 2 - p.padDepth / 2;
+    const deckBackMG = rimXMG + 1.5 + 24;  // rim joist + deck
+    const xMin = Math.floor(padFrontMG / 5) * 5 - 5;
+    const xMax = Math.ceil(deckBackMG / 5) * 5 + 5;
+    const zMin = Math.floor(-(p.concreteBelow + p.gravelDepth) / 5) * 5 - 5;
+    const zMax = Math.ceil((p.totalHeight + 10) / 5) * 5 + 5;
+
+    // Position grid at the front stringer Y (slightly in front for visibility)
+    const gridY = -2;
+
+    // 1" grid lines
+    const thinMat = new THREE.LineBasicMaterial({ color: 0x999999, transparent: true, opacity: 0.15 });
+    const thickMat = new THREE.LineBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.3 });
+
+    const thinPts = [];
+    const thickPts = [];
+
+    // Vertical lines (constant x)
+    for (let x = xMin; x <= xMax; x++) {
+      const pts = (x % 5 === 0) ? thickPts : thinPts;
+      pts.push(new THREE.Vector3(x, gridY, zMin), new THREE.Vector3(x, gridY, zMax));
+    }
+    // Horizontal lines (constant z)
+    for (let z = zMin; z <= zMax; z++) {
+      const pts = (z % 5 === 0) ? thickPts : thinPts;
+      pts.push(new THREE.Vector3(xMin, gridY, z), new THREE.Vector3(xMax, gridY, z));
+    }
+
+    if (thinPts.length > 0) {
+      const thinGeo = new THREE.BufferGeometry().setFromPoints(thinPts);
+      measureGridGroup.add(new THREE.LineSegments(thinGeo, thinMat));
+    }
+    if (thickPts.length > 0) {
+      const thickGeo = new THREE.BufferGeometry().setFromPoints(thickPts);
+      measureGridGroup.add(new THREE.LineSegments(thickGeo, thickMat));
+    }
+
+    // Numbers every 5" on the edges
+    for (let x = xMin; x <= xMax; x += 5) {
+      const label = makeTextSprite(`${x}`, '#555555', 28);
+      label.position.set(x, gridY, zMin - 1.5);
+      label.scale.set(2, 1, 1);
+      measureGridGroup.add(label);
+    }
+    for (let z = zMin; z <= zMax; z += 5) {
+      const label = makeTextSprite(`${z}`, '#555555', 28);
+      label.position.set(xMin - 2, gridY, z);
+      label.scale.set(2, 1, 1);
+      measureGridGroup.add(label);
+    }
+  }
+  meshes.measureGrid = measureGridGroup;
+
   // --- Ground plane ---
   const groundGeo = new THREE.PlaneGeometry(p.totalRun + 72, p.stairWidth + 48);
   const groundMat = new THREE.MeshPhongMaterial({ color: COLORS.ground, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
