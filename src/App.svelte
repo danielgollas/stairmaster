@@ -104,6 +104,7 @@
     sillPlateThickness, postSize: MATERIALS['4x4'].actual,
     padAboveGrade, concreteBelow, gravelDepth, padSideClearance,
     padWidth: padDims.padWidth, padDepth: padDims.padDepth,
+    throat: geometry.throat,
     bottomDrop: stringerProfile.bottomDrop,
     topTreadReduction: stringerProfile.topTreadReduction,
     postHeight: 42,
