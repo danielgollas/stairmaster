@@ -457,6 +457,68 @@ function buildDimensions(p) {
     0xfbbf24
   ));
 
+  // --- Stringer sub-measurements (shown on step 2 for clarity) ---
+  const seatZ = p.padAboveGrade + p.sillPlateThickness;
+  const drop = p.bottomDrop;
+  const rise = p.actualRiserHeight;
+  const run = p.treadDepth;
+  const rb = p.riserBoardThickness;
+  const subY = dimY - 6;  // further offset so they don't overlap main dims
+
+  if (p.numTreads >= 2) {
+    // Use step index 1 (second step) for measurements
+    const si = 1;
+    // Notch position in world coords
+    const notchX = si * run;
+    const notchZ = seatZ + (si + 1) * rise - drop;
+    const prevNotchZ = seatZ + si * rise - drop;
+
+    // Stringer tread cut depth (horizontal)
+    const treadCut = run - rb;
+    group.add(makeDimLine(
+      [notchX + rb, subY, notchZ - 0.5],
+      [notchX + treadCut + rb, subY, notchZ - 0.5],
+      `${treadCut.toFixed(2)}" cut`,
+      0xe67e22
+    ));
+
+    // Stringer riser cut height (vertical)
+    group.add(makeDimLine(
+      [notchX - 1, subY, prevNotchZ],
+      [notchX - 1, subY, notchZ],
+      `${rise.toFixed(2)}" rise cut`,
+      0xe67e22
+    ));
+
+    // Riser board pocket (horizontal, the rb gap)
+    group.add(makeDimLine(
+      [notchX, subY, notchZ + 1],
+      [notchX + rb, subY, notchZ + 1],
+      `${rb}" rb`,
+      0xe67e22
+    ));
+  }
+
+  // Throat dimension (perpendicular to slope)
+  const throatSprite = makeTextSprite(`${p.throat.toFixed(2)}" throat`, '#e67e22');
+  // Position near the middle of the stringer body
+  const midX = p.totalRun * 0.4;
+  const midZ = seatZ + 2 * rise - drop - p.stringerStockWidth * 0.3;
+  throatSprite.position.set(midX, subY, midZ);
+  group.add(throatSprite);
+
+  // Seat length
+  const seatEndX = p.stringerStockWidth * rise / Math.sqrt(rise * rise + run * run);
+  const seatLen = seatEndX;
+  const seatLabelSprite = makeTextSprite(`${seatLen.toFixed(1)}" seat`, '#e67e22');
+  seatLabelSprite.position.set(-seatLen / 2, subY, seatZ - 1);
+  group.add(seatLabelSprite);
+
+  // Stringer stock width (board width)
+  const swSprite = makeTextSprite(`${p.stringerStockWidth}" 2x12`, '#e67e22');
+  swSprite.position.set(p.totalRun * 0.6, subY, seatZ + 3 * rise - drop - p.stringerStockWidth * 0.6);
+  group.add(swSprite);
+
   return group;
 }
 
