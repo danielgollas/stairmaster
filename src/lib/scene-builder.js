@@ -64,12 +64,12 @@ export function buildScene(p) {
   const padGroup = new THREE.Group();
   const padCenterY = p.stairWidth / 2;
 
-  // Pad shifted left by rb so bottom riser board sits on sill plate
+  // Pad front edge: one tread depth in front of sill plate start (landing "tread")
   const padShift = -p.riserBoardThickness;
-
-  // Pad shifted left by half its depth so front half is the ground-level "tread"
-  // Center x = padShift - padDepth/2 (left half extends forward as landing)
-  const padCenterX = padShift;
+  const basePadDepth = p.seatCutLength + p.treadDepth;  // base depth without extension
+  const padFrontX = padShift - basePadDepth / 2;        // front stays fixed
+  const padBackX = padFrontX + p.padDepth;               // back extends with padBackExtension
+  const padCenterX = (padFrontX + padBackX) / 2;
 
   // Gravel
   const gravelMesh = makeMesh(box(p.padDepth, p.padWidth, p.gravelDepth), COLORS.gravel);
@@ -95,7 +95,16 @@ export function buildScene(p) {
   const compStartY = firstStringerY;  // left edge of first outer stringer
   const compWidth = p.effectiveWidth;  // outer face to outer face
   const compCenterY = compStartY + compWidth / 2;
-  const sillDepth = p.treadDepth;
+  // Sill plate depth matches the stringer seat cut (seatEndX)
+  const rise = p.actualRiserHeight;
+  const run = p.treadDepth;
+  const hypCalc = Math.sqrt(rise * rise + run * run);
+  const slopeCalc = rise / run;
+  const topLineCalc = rise - p.bottomDrop;
+  const boardVertCalc = p.stringerStockWidth * hypCalc / run;
+  const botAtX0Calc = topLineCalc - boardVertCalc;
+  const seatEndXCalc = -botAtX0Calc / slopeCalc;
+  const sillDepth = Math.max(p.treadDepth, seatEndXCalc);
   const sillMesh = makeMesh(box(sillDepth, compWidth, p.sillPlateThickness), COLORS.sillPlate);
   sillMesh.position.set(padShift + sillDepth / 2, compCenterY, p.padAboveGrade + p.sillPlateThickness / 2);
   meshes.sillPlate = sillMesh;

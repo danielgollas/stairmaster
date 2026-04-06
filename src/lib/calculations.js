@@ -89,11 +89,26 @@ export function computePadDimensions(params) {
   const minWidth = topPostSpacing + 2 * (postSize || 3.5) + 2 * padSideClearance;
   const padWidth = Math.max(minWidth, topPostSpacing + 2 * padSideClearance);
 
+  const padDepthCalc = seatCutLength + treadDepth + (padBackExtension || 0);
+  const concreteThickness = concreteBelow + padAboveGrade;
+  const excavationDepth = gravelDepth + concreteBelow;
+
+  // Material calculations
+  const gravelCuFt = (padDepthCalc * padWidth * gravelDepth) / 1728;  // in³ to ft³
+  const concreteCuFt = (padDepthCalc * padWidth * concreteThickness) / 1728;
+  // 60lb bag covers ~0.45 cu ft, 80lb bag covers ~0.6 cu ft
+  const bags60lb = Math.ceil(concreteCuFt / 0.45);
+  const bags80lb = Math.ceil(concreteCuFt / 0.6);
+
   return {
     padWidth,
-    padDepth: seatCutLength + treadDepth + (padBackExtension || 0),
-    concreteThickness: concreteBelow + padAboveGrade,
-    excavationDepth: gravelDepth + concreteBelow,
+    padDepth: padDepthCalc,
+    concreteThickness,
+    excavationDepth,
+    gravelCuFt,
+    concreteCuFt,
+    bags60lb,
+    bags80lb,
   };
 }
 

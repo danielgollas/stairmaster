@@ -15,6 +15,10 @@
     padDepth = 0,
     concreteThickness = 0,
     excavationDepth = 0,
+    gravelCuFt = 0,
+    concreteCuFt = 0,
+    bags60lb = 0,
+    bags80lb = 0,
     warnings = [],
     postBase = '',
     tensionTie = '',
@@ -47,6 +51,14 @@
     <div class="row"><span>Depth (D)</span><strong>{fmt(padDepth)}"</strong></div>
     <div class="row"><span>Concrete</span><strong>{fmt(concreteThickness)}"</strong></div>
     <div class="row"><span>Excavation</span><strong>{fmt(excavationDepth)}"</strong></div>
+  </div>
+
+  <div class="section">
+    <h3>Materials</h3>
+    <div class="row"><span>Gravel</span><strong>{fmt(gravelCuFt, 1)} cu ft</strong></div>
+    <div class="row"><span>Concrete</span><strong>{fmt(concreteCuFt, 1)} cu ft</strong></div>
+    <div class="row"><span>60lb bags</span><strong>{bags60lb}</strong></div>
+    <div class="row"><span>80lb bags</span><strong>{bags80lb}</strong></div>
   </div>
 
   <div class="section">

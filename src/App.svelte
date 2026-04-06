@@ -105,6 +105,7 @@
     padAboveGrade, concreteBelow, gravelDepth, padSideClearance,
     padWidth: padDims.padWidth, padDepth: padDims.padDepth,
     throat: geometry.throat,
+    seatCutLength: stringerProfile.seatCutLength,
     bottomDrop: stringerProfile.bottomDrop,
     topTreadReduction: stringerProfile.topTreadReduction,
     postHeight: 42,
@@ -178,6 +179,10 @@
       padDepth={padDims.padDepth}
       concreteThickness={padDims.concreteThickness}
       excavationDepth={padDims.excavationDepth}
+      gravelCuFt={padDims.gravelCuFt}
+      concreteCuFt={padDims.concreteCuFt}
+      bags60lb={padDims.bags60lb}
+      bags80lb={padDims.bags80lb}
       {warnings}
       {postBase}
       {tensionTie}
