@@ -95,16 +95,17 @@ export function buildScene(p) {
   const compStartY = firstStringerY;  // left edge of first outer stringer
   const compWidth = p.effectiveWidth;  // outer face to outer face
   const compCenterY = compStartY + compWidth / 2;
-  // Sill plate depth matches the stringer seat cut (seatEndX)
-  const rise = p.actualRiserHeight;
-  const run = p.treadDepth;
-  const hypCalc = Math.sqrt(rise * rise + run * run);
-  const slopeCalc = rise / run;
-  const topLineCalc = rise - p.bottomDrop;
-  const boardVertCalc = p.stringerStockWidth * hypCalc / run;
-  const botAtX0Calc = topLineCalc - boardVertCalc;
-  const seatEndXCalc = -botAtX0Calc / slopeCalc;
-  const sillDepth = Math.max(p.treadDepth, seatEndXCalc);
+  // Sill plate extends from padShift to the stringer heel (seatEndX)
+  const riseC = p.actualRiserHeight;
+  const runC = p.treadDepth;
+  const hypC = Math.sqrt(riseC * riseC + runC * runC);
+  const slopeC = riseC / runC;
+  const topLineC = riseC - p.bottomDrop;
+  const boardVertC = p.stringerStockWidth * hypC / runC;
+  const botAtX0C = topLineC - boardVertC;
+  const seatEndXC = -botAtX0C / slopeC;  // where bottom edge meets y=0 (stringer heel)
+  // Sill left edge at padShift, right edge at seatEndXC
+  const sillDepth = seatEndXC - padShift;
   const sillMesh = makeMesh(box(sillDepth, compWidth, p.sillPlateThickness), COLORS.sillPlate);
   sillMesh.position.set(padShift + sillDepth / 2, compCenterY, p.padAboveGrade + p.sillPlateThickness / 2);
   meshes.sillPlate = sillMesh;
