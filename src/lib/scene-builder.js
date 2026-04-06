@@ -610,11 +610,15 @@ function buildStringerShape(p) {
   const botAtX0 = topLineY0 - boardVertical;
   const botAtTop = botAtX0 + topX * slopeRatio;
 
+  // Where does the bottom edge meet y=0 (seat/sill plate level)?
+  // botEdge(x) = botAtX0 + x * slopeRatio = 0  →  x = -botAtX0 / slopeRatio
+  const seatEndX = -botAtX0 / slopeRatio;
+
   const pts = [];
 
-  // 1. Left plumb cut at x=0: from bottom edge up to seat (y=0)
-  pts.push([0, botAtX0]);            // bottom of left plumb
-  pts.push([0, 0]);                  // seat level (sill plate top)
+  // 1. Seat cut: bottom edge meets sill plate level, horizontal to x=0
+  pts.push([seatEndX, 0]);           // bottom edge meets seat level
+  pts.push([0, 0]);                  // seat bearing to first riser
 
   // 2. Sawtooth: left to right (ascending)
   for (let i = 0; i < n; i++) {
