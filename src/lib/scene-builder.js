@@ -156,6 +156,58 @@ export function buildScene(p) {
 
   meshes.stringers = stringerGroup;
 
+  // --- Board overlay: 2x12x8' stock board aligned with stringer bottom edge ---
+  const boardOverlayGroup = new THREE.Group();
+  {
+    const boardLen = 96;  // 8 feet
+    const boardW = p.stringerStockWidth;  // 11.25"
+    const rise = p.actualRiserHeight;
+    const run = p.treadDepth;
+    const drop = p.bottomDrop;
+    const hyp = Math.sqrt(rise * rise + run * run);
+    const offX = boardW * rise / hyp;
+    const offY = boardW * run / hyp;
+
+    // Build the board as a shape in XY (same frame as the stringer shape)
+    // The board is a rectangle along the stair slope, boardLen long x boardW wide.
+    // Bottom edge aligned with the stringer's bottom edge.
+    //
+    // The stringer bottom edge at x=0 is at y = botAtSeat (computed in shape).
+    // Recompute here: botAtSeat = -offY + offX * (rise/run)
+    const slopeRatio = rise / run;
+    const botAtSeat = -offY + offX * slopeRatio;
+
+    // Board bottom-left corner at (0, botAtSeat)
+    // Board extends along the slope for boardLen
+    const dx = boardLen * run / hyp;   // horizontal extent
+    const dy = boardLen * rise / hyp;  // vertical extent
+
+    const boardShape = new THREE.Shape();
+    boardShape.moveTo(0, botAtSeat);                           // bottom-left
+    boardShape.lineTo(dx, botAtSeat + dy);                     // bottom-right
+    boardShape.lineTo(dx - offX, botAtSeat + dy + offY);       // top-right (perpendicular offset)
+    boardShape.lineTo(-offX, botAtSeat + offY);                // top-left
+
+    const boardGeo = new THREE.ExtrudeGeometry(boardShape, {
+      depth: p.stringerStockThickness,
+      bevelEnabled: false,
+    });
+    boardGeo.rotateX(Math.PI / 2);
+
+    const boardMat = new THREE.MeshPhongMaterial({
+      color: 0xd4a574,
+      transparent: true,
+      opacity: 0.25,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const boardMesh = new THREE.Mesh(boardGeo, boardMat);
+    boardMesh.position.set(0, firstStringerY + p.stringerStockThickness, seatZ);
+
+    boardOverlayGroup.add(boardMesh);
+  }
+  meshes.boardOverlay = boardOverlayGroup;
+
   // --- Blocking ---
   const blockingGroup = new THREE.Group();
   // Blocking is 2x4 material: 1.5" thick x 3.5" tall, laid flat on sill plate
