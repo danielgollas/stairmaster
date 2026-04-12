@@ -294,31 +294,110 @@
           stroke-dasharray="{2 / scale},{1 / scale}"
         />
 
-        <!-- Waste areas (outside the stringer, inside the board) -->
-        <!-- Mark with X or hatching -->
+        <!-- Edge measurements: project cut vertices onto each edge -->
+        {#if true}
+          {@const efs = 0.5}
+          {@const eoff = 1.5}
+          {@const etk = 0.3}
 
-        <!-- Dimension: board length -->
-        <text
-          x={(L.boardLeft + L.boardRight) / 2}
-          y={L.sw + 3}
-          text-anchor="middle"
-          font-size={2.5}
-          fill="#333"
-        >
-          {fmtFrac(L.boardRight - L.boardLeft)} board length
-        </text>
+          <!-- Collect unique bx projections for top/bottom edges -->
+          {@const edgeBx = (() => {
+            const s = new Set([L.boardLeft, L.boardRight]);
+            for (const pt of L.cutMarks) s.add(Math.round(pt.bx * 100) / 100);
+            return [...s].sort((a,b) => a-b);
+          })()}
 
-        <!-- Dimension: board width -->
-        <text
-          x={L.boardLeft - 2}
-          y={L.sw / 2}
-          text-anchor="middle"
-          font-size={2}
-          fill="#333"
-          transform="rotate(-90, {L.boardLeft - 2}, {L.sw / 2})"
-        >
-          {L.sw}" (2x12)
-        </text>
+          <!-- Collect unique by projections for left/right edges -->
+          {@const edgeBy = (() => {
+            const s = new Set([0, L.sw]);
+            for (const pt of L.cutMarks) {
+              const by = Math.max(0, Math.min(L.sw, pt.by));
+              s.add(Math.round(by * 100) / 100);
+            }
+            return [...s].sort((a,b) => a-b);
+          })()}
+
+          <!-- Top edge measurements -->
+          {#each edgeBx as bx, i}
+            {#if i > 0}
+              {@const prev = edgeBx[i-1]}
+              {@const dist = bx - prev}
+              {#if dist > 0.3}
+                <line x1={prev} y1={-eoff} x2={bx} y2={-eoff} stroke="#2980b9" stroke-width={0.08} />
+                <line x1={prev} y1={-eoff-etk} x2={prev} y2={-eoff+etk} stroke="#2980b9" stroke-width={0.08} />
+                <line x1={bx} y1={-eoff-etk} x2={bx} y2={-eoff+etk} stroke="#2980b9" stroke-width={0.08} />
+                <!-- Drop lines from edge to dimension -->
+                <line x1={prev} y1={0} x2={prev} y2={-eoff} stroke="#2980b9" stroke-width={0.05} opacity={0.3} />
+                <line x1={bx} y1={0} x2={bx} y2={-eoff} stroke="#2980b9" stroke-width={0.05} opacity={0.3} />
+                <text x={(prev+bx)/2} y={-eoff-0.4} text-anchor="middle" font-size={efs} fill="#2980b9">
+                  {fmtFrac(dist)}
+                </text>
+              {/if}
+            {/if}
+          {/each}
+
+          <!-- Bottom edge measurements -->
+          {#each edgeBx as bx, i}
+            {#if i > 0}
+              {@const prev = edgeBx[i-1]}
+              {@const dist = bx - prev}
+              {#if dist > 0.3}
+                <line x1={prev} y1={L.sw+eoff} x2={bx} y2={L.sw+eoff} stroke="#c0392b" stroke-width={0.08} />
+                <line x1={prev} y1={L.sw+eoff-etk} x2={prev} y2={L.sw+eoff+etk} stroke="#c0392b" stroke-width={0.08} />
+                <line x1={bx} y1={L.sw+eoff-etk} x2={bx} y2={L.sw+eoff+etk} stroke="#c0392b" stroke-width={0.08} />
+                <line x1={prev} y1={L.sw} x2={prev} y2={L.sw+eoff} stroke="#c0392b" stroke-width={0.05} opacity={0.3} />
+                <line x1={bx} y1={L.sw} x2={bx} y2={L.sw+eoff} stroke="#c0392b" stroke-width={0.05} opacity={0.3} />
+                <text x={(prev+bx)/2} y={L.sw+eoff+0.8} text-anchor="middle" font-size={efs} fill="#c0392b">
+                  {fmtFrac(dist)}
+                </text>
+              {/if}
+            {/if}
+          {/each}
+
+          <!-- Left edge measurements -->
+          {#each edgeBy as by, i}
+            {#if i > 0}
+              {@const prev = edgeBy[i-1]}
+              {@const dist = by - prev}
+              {#if dist > 0.3}
+                <line x1={L.boardLeft-eoff} y1={prev} x2={L.boardLeft-eoff} y2={by} stroke="#27ae60" stroke-width={0.08} />
+                <line x1={L.boardLeft-eoff-etk} y1={prev} x2={L.boardLeft-eoff+etk} y2={prev} stroke="#27ae60" stroke-width={0.08} />
+                <line x1={L.boardLeft-eoff-etk} y1={by} x2={L.boardLeft-eoff+etk} y2={by} stroke="#27ae60" stroke-width={0.08} />
+                <line x1={L.boardLeft} y1={prev} x2={L.boardLeft-eoff} y2={prev} stroke="#27ae60" stroke-width={0.05} opacity={0.3} />
+                <line x1={L.boardLeft} y1={by} x2={L.boardLeft-eoff} y2={by} stroke="#27ae60" stroke-width={0.05} opacity={0.3} />
+                <text x={L.boardLeft-eoff-0.5} y={(prev+by)/2+0.2} text-anchor="middle" font-size={efs} fill="#27ae60"
+                  transform="rotate(-90, {L.boardLeft-eoff-0.5}, {(prev+by)/2+0.2})">
+                  {fmtFrac(dist)}
+                </text>
+              {/if}
+            {/if}
+          {/each}
+
+          <!-- Right edge measurements -->
+          {#each edgeBy as by, i}
+            {#if i > 0}
+              {@const prev = edgeBy[i-1]}
+              {@const dist = by - prev}
+              {#if dist > 0.3}
+                <line x1={L.boardRight+eoff} y1={prev} x2={L.boardRight+eoff} y2={by} stroke="#8e44ad" stroke-width={0.08} />
+                <line x1={L.boardRight+eoff-etk} y1={prev} x2={L.boardRight+eoff+etk} y2={prev} stroke="#8e44ad" stroke-width={0.08} />
+                <line x1={L.boardRight+eoff-etk} y1={by} x2={L.boardRight+eoff+etk} y2={by} stroke="#8e44ad" stroke-width={0.08} />
+                <line x1={L.boardRight} y1={prev} x2={L.boardRight+eoff} y2={prev} stroke="#8e44ad" stroke-width={0.05} opacity={0.3} />
+                <line x1={L.boardRight} y1={by} x2={L.boardRight+eoff} y2={by} stroke="#8e44ad" stroke-width={0.05} opacity={0.3} />
+                <text x={L.boardRight+eoff+0.5} y={(prev+by)/2+0.2} text-anchor="middle" font-size={efs} fill="#8e44ad"
+                  transform="rotate(90, {L.boardRight+eoff+0.5}, {(prev+by)/2+0.2})">
+                  {fmtFrac(dist)}
+                </text>
+              {/if}
+            {/if}
+          {/each}
+
+          <!-- Board width label -->
+          <text x={L.boardLeft - 4} y={L.sw / 2} text-anchor="middle" font-size={1.2} fill="#333"
+            transform="rotate(-90, {L.boardLeft - 4}, {L.sw / 2})">
+            {L.sw}" (2x12)
+          </text>
+        {/if}
 
         <!-- Edge measurements: dots where cuts cross board edges, distances between them -->
         {#if true}
