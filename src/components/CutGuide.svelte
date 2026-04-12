@@ -423,7 +423,7 @@
                   stroke="#8e44ad" stroke-width={0.15/scale} />
                 <text x={L.boardRight + 1.5} y={(by + rightEdgeCrossings[i-1]) / 2 + 0.3}
                   text-anchor="middle" font-size={fs} fill="#333"
-                  transform="rotate(90, {L.boardRight + 1.5}, {(by + rightEdgePts[i-1]) / 2 + 0.3})">
+                  transform="rotate(90, {L.boardRight + 1.5}, {(by + rightEdgeCrossings[i-1]) / 2 + 0.3})">
                   {fmtFrac(dist)}
                 </text>
               {/if}
