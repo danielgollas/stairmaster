@@ -117,24 +117,26 @@
 
     // Bottom edge back to seat (auto-close handled by SVG)
 
-    // Find bounding box of all points
-    let minBx = Infinity, maxBx = -Infinity, minBy = Infinity, maxBy = -Infinity;
+    // Find bounding box of all stringer points
+    let minBx = Infinity, maxBx = -Infinity;
     for (const p of pts) {
       minBx = Math.min(minBx, p.bx);
       maxBx = Math.max(maxBx, p.bx);
-      minBy = Math.min(minBy, p.by);
-      maxBy = Math.max(maxBy, p.by);
     }
     // Include bottom edge points
     minBx = Math.min(minBx, boardBotLeft.bx, boardBotRight.bx);
     maxBx = Math.max(maxBx, boardBotLeft.bx, boardBotRight.bx);
-    minBy = Math.min(minBy, 0);
-    maxBy = Math.max(maxBy, sw);
+
+    // Board spans the full extent of the stringer
+    const boardLeft = minBx;
+    const boardRight = maxBx;
+    const minBy = 0;
+    const maxBy = sw;
 
     return {
       pts, boardBotLeft, boardBotRight, topPlumbTop, topPlumbBot,
       seatEnd, seatOrigin,
-      sw, boardLength: maxBx - minBx,
+      sw, boardLeft, boardRight,
       minBx, maxBx, minBy, maxBy,
       angle, rise, run, drop, rb, n, topX, topY, botAtX0, slopeRatio,
       notchY, toBoard, notches,
@@ -164,11 +166,11 @@
       style="background: white;"
     >
       <g transform="scale({scale}) translate({ox},{oy})">
-        <!-- Board outline (rectangle) -->
+        <!-- Board outline (rectangle covering full stringer extent) -->
         <rect
-          x={L.boardBotLeft.bx}
+          x={L.boardLeft}
           y={0}
-          width={L.boardBotRight.bx - L.boardBotLeft.bx}
+          width={L.boardRight - L.boardLeft}
           height={L.sw}
           fill="#f5e6c8"
           stroke="#a0784c"
@@ -176,24 +178,24 @@
         />
 
         <!-- 1" grid on the board -->
-        {#each Array(Math.ceil(L.boardBotRight.bx - L.boardBotLeft.bx)) as _, i}
+        {#each Array(Math.ceil(L.boardRight - L.boardLeft) + 1) as _, i}
           <line
-            x1={L.boardBotLeft.bx + i}
+            x1={L.boardLeft + i}
             y1={0}
-            x2={L.boardBotLeft.bx + i}
+            x2={L.boardLeft + i}
             y2={L.sw}
-            stroke="#ddd"
-            stroke-width={0.2 / scale}
+            stroke={i % 5 === 0 ? "#bbb" : "#ddd"}
+            stroke-width={(i % 5 === 0 ? 0.3 : 0.15) / scale}
           />
         {/each}
-        {#each Array(Math.ceil(L.sw)) as _, i}
+        {#each Array(Math.ceil(L.sw) + 1) as _, i}
           <line
-            x1={L.boardBotLeft.bx}
+            x1={L.boardLeft}
             y1={i}
-            x2={L.boardBotRight.bx}
+            x2={L.boardRight}
             y2={i}
-            stroke="#ddd"
-            stroke-width={0.2 / scale}
+            stroke={i % 5 === 0 ? "#bbb" : "#ddd"}
+            stroke-width={(i % 5 === 0 ? 0.3 : 0.15) / scale}
           />
         {/each}
 
@@ -211,23 +213,23 @@
 
         <!-- Dimension: board length -->
         <text
-          x={(L.boardBotLeft.bx + L.boardBotRight.bx) / 2}
+          x={(L.boardLeft + L.boardRight) / 2}
           y={L.sw + 3}
           text-anchor="middle"
           font-size={2.5}
           fill="#333"
         >
-          {(L.boardBotRight.bx - L.boardBotLeft.bx).toFixed(1)}" board length
+          {(L.boardRight - L.boardLeft).toFixed(1)}" board length
         </text>
 
         <!-- Dimension: board width -->
         <text
-          x={L.boardBotLeft.bx - 2}
+          x={L.boardLeft - 2}
           y={L.sw / 2}
           text-anchor="middle"
           font-size={2}
           fill="#333"
-          transform="rotate(-90, {L.boardBotLeft.bx - 2}, {L.sw / 2})"
+          transform="rotate(-90, {L.boardLeft - 2}, {L.sw / 2})"
         >
           {L.sw}" (2x12)
         </text>
