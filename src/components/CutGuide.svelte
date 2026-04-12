@@ -261,23 +261,10 @@
             const v = [];
             const tb = L.toBoard;
 
-            // Use the EXACT point objects from L.pts (same objects that draw the outline)
-            // L.pts layout: [seatHeel, seatOrigin, R1top, T1end, fillgap?, R2top, T2end, ...]
-            // Skip fill-gap points (every 3rd point after index 2, for n-1 times)
-            const p = L.pts;
-            // Indices of actual cut vertices:
-            // 0=seatHeel, 1=seatOrigin
-            v.push(p[0], p[1]);
-            // For each notch: 2 points + optional fill-gap
-            // Notch i starts at index 2 + i*3 (for i<n-1) or 2 + (n-1)*3 + (i-(n-1))*2
-            let idx = 2;
-            for (let i = 0; i < L.n; i++) {
-              v.push(p[idx]);     // riser top / inside corner
-              v.push(p[idx + 1]); // tread end
-              idx += (i < L.n - 1) ? 3 : 2; // skip fill-gap for non-last notches
+            // Every point in L.pts is a vertex on the cut outline — use them all
+            for (const pt of L.pts) {
+              v.push(pt);
             }
-            // Last 2: plumb top, plumb bottom — only include plumb bottom
-            v.push(p[p.length - 1]); // plumb bottom
 
             return v;
           })()}
