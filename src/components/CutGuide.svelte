@@ -92,27 +92,24 @@
       fillEnd: toBoard(notch.riserX + notch.td + rb, notch.treadY),
     }));
 
-    // Build SVG path for the stringer outline on the board
+    // Cut pattern: 11 points — pure sawtooth, no fill-gap ledges
+    // This is what you actually mark and cut on the board
     const pts = [];
 
-    // Seat
+    // 1. Seat heel, 2. Seat origin
     pts.push(toBoard(seatEndX, 0));
     pts.push(toBoard(0, 0));
 
-    // Sawtooth
+    // 3-10. Sawtooth: each notch = inside corner + tread end
     for (let i = 0; i < n; i++) {
       const treadY = notchY(i);
       const riserX = i * run;
       const td = (i === n - 1) ? run - 2 * rb : run - rb;
-      pts.push(toBoard(riserX, treadY));
-      pts.push(toBoard(riserX + td, treadY));
-      if (i < n - 1) {
-        pts.push(toBoard((i + 1) * run, treadY));
-      }
+      pts.push(toBoard(riserX, treadY));       // inside corner
+      pts.push(toBoard(riserX + td, treadY));  // tread end
     }
 
-    // Top plumb
-    pts.push(toBoard(topX, topY));
+    // 11. Plumb bottom
     pts.push(toBoard(topX, botAtX0 + topX * slopeRatio));
 
     // Bottom edge back to seat (auto-close handled by SVG)
@@ -261,27 +258,10 @@
             const v = [];
             const tb = L.toBoard;
 
-            // 11 cut marks — the points where you mark the board
-            // These are the exact L.pts objects, indexed to skip fill-gap
-            // and plumb-top points (which aren't actual cut marks).
-            //
-            // L.pts indices (n=4 treads):
-            //  0: seat heel       1: seat origin
-            //  2: R1 top          3: T1 end         4: fill-gap (skip)
-            //  5: R2 top          6: T2 end         7: fill-gap (skip)
-            //  8: R3 top          9: T3 end        10: fill-gap (skip)
-            // 11: R4 top         12: T4 end
-            // 13: plumb top (skip)  14: plumb bottom
-            const p = L.pts;
-            v.push(p[0]);  // seat heel
-            v.push(p[1]);  // seat origin
-            let idx = 2;
-            for (let i = 0; i < L.n; i++) {
-              v.push(p[idx]);      // inside corner (riser top)
-              v.push(p[idx + 1]);  // tread end
-              idx += (i < L.n - 1) ? 3 : 2;
+            // L.pts now has exactly 11 points (no fill-gaps) — use them all
+            for (const pt of L.pts) {
+              v.push(pt);
             }
-            v.push(p[p.length - 1]);  // plumb bottom
 
             return v;
           })()}
