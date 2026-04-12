@@ -256,54 +256,45 @@
           {@const fs = 0.8}
           {@const dotR = 0.3}
 
-          <!-- Find all intersections of stringer outline with board edges -->
-          {@const edgeCrossings = (() => {
-            const top = [], bot = [], left = [], right = [];
-            const pts = L.pts;
-            const n = pts.length;
-            for (let k = 0; k < n; k++) {
-              const p1 = pts[k];
-              const p2 = pts[(k + 1) % n];
-              const dx = p2.bx - p1.bx, dy = p2.by - p1.by;
-              // Top edge y=0
-              if (Math.abs(dy) > 0.001 && ((p1.by <= 0 && p2.by >= 0) || (p1.by >= 0 && p2.by <= 0))) {
-                const t = -p1.by / dy;
-                if (t > 0.001 && t < 0.999) top.push(p1.bx + t * dx);
-              }
-              // Bottom edge y=sw
-              if (Math.abs(dy) > 0.001 && ((p1.by <= L.sw && p2.by >= L.sw) || (p1.by >= L.sw && p2.by <= L.sw))) {
-                const t = (L.sw - p1.by) / dy;
-                if (t > 0.001 && t < 0.999) bot.push(p1.bx + t * dx);
-              }
-              // Left edge x=boardLeft
-              if (Math.abs(dx) > 0.001 && ((p1.bx <= L.boardLeft && p2.bx >= L.boardLeft) || (p1.bx >= L.boardLeft && p2.bx <= L.boardLeft))) {
-                const t = (L.boardLeft - p1.bx) / dx;
-                if (t > 0.001 && t < 0.999) {
-                  const y = p1.by + t * dy;
-                  if (y > 0.01 && y < L.sw - 0.01) left.push(y);
-                }
-              }
-              // Right edge x=boardRight
-              if (Math.abs(dx) > 0.001 && ((p1.bx <= L.boardRight && p2.bx >= L.boardRight) || (p1.bx >= L.boardRight && p2.bx <= L.boardRight))) {
-                const t = (L.boardRight - p1.bx) / dx;
-                if (t > 0.001 && t < 0.999) {
-                  const y = p1.by + t * dy;
-                  if (y > 0.01 && y < L.sw - 0.01) right.push(y);
-                }
-              }
+          <!-- Project stringer vertices onto each board edge -->
+          <!-- Bottom edge (y=sw): project all pts with by near sw onto bx axis -->
+          {@const botEdgePts = (() => {
+            const pts = [L.boardLeft];
+            for (const p of L.pts) {
+              if (p.by > L.sw * 0.7) pts.push(p.bx);  // near bottom
             }
-            const dedup = a => [...new Set(a.map(v => Math.round(v*100)/100))].sort((a,b)=>a-b);
-            return {
-              top: [L.boardLeft, ...dedup(top), L.boardRight],
-              bot: [L.boardLeft, ...dedup(bot), L.boardRight],
-              left: [0, ...dedup(left), L.sw],
-              right: [0, ...dedup(right), L.sw],
-            };
+            pts.push(L.boardRight);
+            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
           })()}
-          {@const botEdgePts = edgeCrossings.bot}
-          {@const topEdgePts = edgeCrossings.top}
-          {@const leftEdgePts = edgeCrossings.left}
-          {@const rightEdgeCrossings = edgeCrossings.right}
+          <!-- Top edge (y=0): project pts near top -->
+          {@const topEdgePts = (() => {
+            const pts = [L.boardLeft];
+            for (const p of L.pts) {
+              if (p.by < L.sw * 0.3) pts.push(p.bx);  // near top
+            }
+            pts.push(L.boardRight);
+            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
+          })()}
+          <!-- Left edge: project pts near left onto by axis -->
+          {@const leftEdgePts = (() => {
+            const pts = [0];
+            for (const p of L.pts) {
+              if (p.bx < L.boardLeft + (L.boardRight - L.boardLeft) * 0.1)
+                pts.push(Math.max(0, Math.min(L.sw, p.by)));
+            }
+            pts.push(L.sw);
+            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
+          })()}
+          <!-- Right edge: project pts near right onto by axis -->
+          {@const rightEdgeCrossings = (() => {
+            const pts = [0];
+            for (const p of L.pts) {
+              if (p.bx > L.boardRight - (L.boardRight - L.boardLeft) * 0.1)
+                pts.push(Math.max(0, Math.min(L.sw, p.by)));
+            }
+            pts.push(L.sw);
+            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
+          })()}
 
           <!-- Letter counter for labeling dots -->
           {@const letterIdx = { val: 0 }}

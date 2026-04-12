@@ -38,6 +38,7 @@
   }
 
   function setView(mode) {
+    if (!canvas) return;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
 
@@ -124,7 +125,7 @@
 
   function render() {
     renderRequested = false;
-    if (!renderer) return;
+    if (!renderer || !canvas) return;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     if (canvas.width !== w || canvas.height !== h) {
@@ -156,7 +157,7 @@
   });
 
   $effect(() => {
-    if (sceneParams && renderer) rebuildMeshes(sceneParams);
+    if (sceneParams && renderer && canvas) rebuildMeshes(sceneParams);
   });
 
   $effect(() => {
@@ -169,7 +170,7 @@
   });
 
   $effect(() => {
-    if (renderer) setView(viewMode);
+    if (renderer && canvas) setView(viewMode);
   });
 </script>
 
