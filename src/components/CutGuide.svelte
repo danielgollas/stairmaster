@@ -144,6 +144,22 @@
     };
   });
 
+  // Format inches as whole + fraction to nearest 16th
+  function fmtFrac(val) {
+    const neg = val < 0;
+    val = Math.abs(val);
+    const whole = Math.floor(val);
+    const remainder = val - whole;
+    const sixteenths = Math.round(remainder * 16);
+    if (sixteenths === 0) return (neg ? '-' : '') + whole + '"';
+    if (sixteenths === 16) return (neg ? '-' : '') + (whole + 1) + '"';
+    // Simplify fraction
+    let num = sixteenths, den = 16;
+    while (num % 2 === 0) { num /= 2; den /= 2; }
+    if (whole === 0) return (neg ? '-' : '') + num + '/' + den + '"';
+    return (neg ? '-' : '') + whole + ' ' + num + '/' + den + '"';
+  }
+
   function pathD(points) {
     if (!points || points.length === 0) return '';
     return 'M ' + points.map(p => `${p.bx.toFixed(2)},${p.by.toFixed(2)}`).join(' L ') + ' Z';
@@ -220,7 +236,7 @@
           font-size={2.5}
           fill="#333"
         >
-          {(L.boardRight - L.boardLeft).toFixed(1)}" board length
+          {fmtFrac(L.boardRight - L.boardLeft)} board length
         </text>
 
         <!-- Dimension: board width -->
@@ -251,7 +267,7 @@
             stroke="#2980b9" stroke-width={0.3/scale} />
           <text x={(tStart.bx+tEnd.bx)/2} y={(tStart.by+tEnd.by)/2 - 0.8}
             text-anchor="middle" font-size={1.2} fill="#2980b9">
-            {td.toFixed(2)}" T{i+1}
+            {fmtFrac(td)} T{i+1}
           </text>
 
           <!-- Riser cut dimension (vertical cut on stringer) -->
@@ -262,7 +278,7 @@
             stroke="#e67e22" stroke-width={0.3/scale} />
           <text x={(rBot.bx+rTop.bx)/2 - 1.5} y={(rBot.by+rTop.by)/2}
             text-anchor="middle" font-size={1.2} fill="#e67e22">
-            {rLen.toFixed(2)}" R{i+1}
+            {fmtFrac(rLen)} R{i+1}
           </text>
 
           <!-- Riser board pocket (rb gap) -->
@@ -272,7 +288,7 @@
             stroke="#8e44ad" stroke-width={0.3/scale} />
           <text x={(pStart.bx+pEnd.bx)/2} y={(pStart.by+pEnd.by)/2 + 1.5}
             text-anchor="middle" font-size={1} fill="#8e44ad">
-            {rb}"
+            {fmtFrac(rb)}
           </text>
         {/each}
 
@@ -283,7 +299,7 @@
             stroke="#27ae60" stroke-width={0.4/scale} />
           <text x={(L.seatEnd.bx+L.seatOrigin.bx)/2} y={(L.seatEnd.by+L.seatOrigin.by)/2 - 1}
             text-anchor="middle" font-size={1.3} fill="#27ae60">
-            {seatLen.toFixed(1)}" seat
+            {fmtFrac(seatLen)} seat
           </text>
         {/if}
 
@@ -296,7 +312,7 @@
             stroke="#27ae60" stroke-width={0.4/scale} />
           <text x={(pTop.bx+pBot.bx)/2 + 2} y={(pTop.by+pBot.by)/2}
             text-anchor="start" font-size={1.3} fill="#27ae60">
-            {pLen.toFixed(1)}" plumb
+            {fmtFrac(pLen)} plumb
           </text>
         {/if}
 
