@@ -92,25 +92,34 @@
       fillEnd: toBoard(notch.riserX + notch.td + rb, notch.treadY),
     }));
 
-    // Cut pattern: 11 points — pure sawtooth, no fill-gap ledges
-    // This is what you actually mark and cut on the board
+    // Full path (for drawing the outline with proper 90° corners)
     const pts = [];
-
-    // 1. Seat heel, 2. Seat origin
     pts.push(toBoard(seatEndX, 0));
     pts.push(toBoard(0, 0));
-
-    // 3-10. Sawtooth: each notch = inside corner + tread end
     for (let i = 0; i < n; i++) {
       const treadY = notchY(i);
       const riserX = i * run;
       const td = (i === n - 1) ? run - 2 * rb : run - rb;
-      pts.push(toBoard(riserX, treadY));       // inside corner
-      pts.push(toBoard(riserX + td, treadY));  // tread end
+      pts.push(toBoard(riserX, treadY));
+      pts.push(toBoard(riserX + td, treadY));
+      if (i < n - 1) {
+        pts.push(toBoard((i + 1) * run, treadY));  // fill-gap for 90° corner
+      }
     }
-
-    // 11. Plumb bottom
+    pts.push(toBoard(topX, topY));
     pts.push(toBoard(topX, botAtX0 + topX * slopeRatio));
+
+    // 11 cut marks (dots only — subset of path points)
+    const cutMarks = [];
+    cutMarks.push(pts[0]);  // seat heel
+    cutMarks.push(pts[1]);  // seat origin
+    let ci = 2;
+    for (let i = 0; i < n; i++) {
+      cutMarks.push(pts[ci]);      // inside corner
+      cutMarks.push(pts[ci + 1]);  // tread end
+      ci += (i < n - 1) ? 3 : 2;
+    }
+    cutMarks.push(pts[pts.length - 1]);  // plumb bottom
 
     // Bottom edge back to seat (auto-close handled by SVG)
 
@@ -131,7 +140,7 @@
     const maxBy = sw;
 
     return {
-      pts, boardBotLeft, boardBotRight, topPlumbTop, topPlumbBot,
+      pts, cutMarks, boardBotLeft, boardBotRight, topPlumbTop, topPlumbBot,
       seatEnd, seatOrigin,
       sw, boardLeft, boardRight,
       minBx, maxBx, minBy, maxBy,
@@ -258,8 +267,8 @@
             const v = [];
             const tb = L.toBoard;
 
-            // L.pts now has exactly 11 points (no fill-gaps) — use them all
-            for (const pt of L.pts) {
+            // Use the 11 cut marks (subset of path points)
+            for (const pt of L.cutMarks) {
               v.push(pt);
             }
 
