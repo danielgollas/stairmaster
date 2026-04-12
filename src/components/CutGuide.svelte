@@ -92,34 +92,31 @@
       fillEnd: toBoard(notch.riserX + notch.td + rb, notch.treadY),
     }));
 
-    // Full path (for drawing the outline with proper 90° corners)
+    // Simple sawtooth: inside corner → tread nose → inside corner → tread nose
+    // Each tread is full `run` wide. Riser is full `rise` tall. No rb pockets.
+    // 11 points total — path AND dots use the same points.
     const pts = [];
+
+    // 1. Seat heel
     pts.push(toBoard(seatEndX, 0));
+    // 2. Seat origin (first riser bottom)
     pts.push(toBoard(0, 0));
+
+    // 3-10. Alternating: inside corner, tread nose
     for (let i = 0; i < n; i++) {
       const treadY = notchY(i);
-      const riserX = i * run;
-      const td = (i === n - 1) ? run - 2 * rb : run - rb;
-      pts.push(toBoard(riserX, treadY));
-      pts.push(toBoard(riserX + td, treadY));
-      if (i < n - 1) {
-        pts.push(toBoard((i + 1) * run, treadY));  // fill-gap for 90° corner
-      }
+      // Inside corner: where riser meets tread (same X as previous tread nose)
+      pts.push(toBoard(i * run, treadY));
+      // Tread nose: end of tread (same X as next riser)
+      const noseX = (i === n - 1) ? topX : (i + 1) * run;
+      pts.push(toBoard(noseX, treadY));
     }
-    pts.push(toBoard(topX, topY));
+
+    // 11. Plumb bottom
     pts.push(toBoard(topX, botAtX0 + topX * slopeRatio));
 
-    // 11 cut marks (dots only — subset of path points)
-    const cutMarks = [];
-    cutMarks.push(pts[0]);  // seat heel
-    cutMarks.push(pts[1]);  // seat origin
-    let ci = 2;
-    for (let i = 0; i < n; i++) {
-      cutMarks.push(pts[ci]);      // inside corner
-      cutMarks.push(pts[ci + 1]);  // tread end
-      ci += (i < n - 1) ? 3 : 2;
-    }
-    cutMarks.push(pts[pts.length - 1]);  // plumb bottom
+    // Path and dots are the same 11 points
+    const cutMarks = pts;
 
     // Bottom edge back to seat (auto-close handled by SVG)
 
