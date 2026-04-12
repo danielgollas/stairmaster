@@ -278,33 +278,44 @@
           {@const eoff = 1.5}
           {@const etk = 0.3}
 
-          <!-- Collect unique bx projections for top/bottom edges -->
-          {@const edgeBx = (() => {
-            const s = new Set([L.boardLeft, L.boardRight]);
-            for (const pt of L.cutMarks) s.add(Math.round(pt.bx * 100) / 100);
-            return [...s].sort((a,b) => a-b);
-          })()}
-
-          <!-- Collect unique by projections for left/right edges -->
-          {@const edgeBy = (() => {
-            const s = new Set([0, L.sw]);
+          <!-- Project each cut vertex onto its nearest edge only -->
+          {@const edgeProjections = (() => {
+            const top = new Set([L.boardLeft, L.boardRight]);
+            const bot = new Set([L.boardLeft, L.boardRight]);
+            const left = new Set([0, L.sw]);
+            const right = new Set([0, L.sw]);
             for (const pt of L.cutMarks) {
-              const by = Math.max(0, Math.min(L.sw, pt.by));
-              s.add(Math.round(by * 100) / 100);
+              const dTop = pt.by;
+              const dBot = L.sw - pt.by;
+              const dLeft = pt.bx - L.boardLeft;
+              const dRight = L.boardRight - pt.bx;
+              const min = Math.min(dTop, dBot, dLeft, dRight);
+              if (min === dTop) top.add(Math.round(pt.bx * 100) / 100);
+              else if (min === dBot) bot.add(Math.round(pt.bx * 100) / 100);
+              else if (min === dLeft) left.add(Math.round(Math.max(0, Math.min(L.sw, pt.by)) * 100) / 100);
+              else right.add(Math.round(Math.max(0, Math.min(L.sw, pt.by)) * 100) / 100);
             }
-            return [...s].sort((a,b) => a-b);
+            return {
+              top: [...top].sort((a,b) => a-b),
+              bot: [...bot].sort((a,b) => a-b),
+              left: [...left].sort((a,b) => a-b),
+              right: [...right].sort((a,b) => a-b),
+            };
           })()}
+          {@const edgeBxTop = edgeProjections.top}
+          {@const edgeBxBot = edgeProjections.bot}
+          {@const edgeByLeft = edgeProjections.left}
+          {@const edgeByRight = edgeProjections.right}
 
           <!-- Top edge measurements -->
-          {#each edgeBx as bx, i}
+          {#each edgeBxTop as bx, i}
             {#if i > 0}
-              {@const prev = edgeBx[i-1]}
+              {@const prev = edgeBxTop[i-1]}
               {@const dist = bx - prev}
               {#if dist > 0.3}
                 <line x1={prev} y1={-eoff} x2={bx} y2={-eoff} stroke="#2980b9" stroke-width={0.08} />
                 <line x1={prev} y1={-eoff-etk} x2={prev} y2={-eoff+etk} stroke="#2980b9" stroke-width={0.08} />
                 <line x1={bx} y1={-eoff-etk} x2={bx} y2={-eoff+etk} stroke="#2980b9" stroke-width={0.08} />
-                <!-- Drop lines from edge to dimension -->
                 <line x1={prev} y1={0} x2={prev} y2={-eoff} stroke="#2980b9" stroke-width={0.05} opacity={0.3} />
                 <line x1={bx} y1={0} x2={bx} y2={-eoff} stroke="#2980b9" stroke-width={0.05} opacity={0.3} />
                 <text x={(prev+bx)/2} y={-eoff-0.4} text-anchor="middle" font-size={efs} fill="#2980b9">
@@ -315,9 +326,9 @@
           {/each}
 
           <!-- Bottom edge measurements -->
-          {#each edgeBx as bx, i}
+          {#each edgeBxBot as bx, i}
             {#if i > 0}
-              {@const prev = edgeBx[i-1]}
+              {@const prev = edgeBxBot[i-1]}
               {@const dist = bx - prev}
               {#if dist > 0.3}
                 <line x1={prev} y1={L.sw+eoff} x2={bx} y2={L.sw+eoff} stroke="#c0392b" stroke-width={0.08} />
@@ -333,9 +344,9 @@
           {/each}
 
           <!-- Left edge measurements -->
-          {#each edgeBy as by, i}
+          {#each edgeByLeft as by, i}
             {#if i > 0}
-              {@const prev = edgeBy[i-1]}
+              {@const prev = edgeByLeft[i-1]}
               {@const dist = by - prev}
               {#if dist > 0.3}
                 <line x1={L.boardLeft-eoff} y1={prev} x2={L.boardLeft-eoff} y2={by} stroke="#27ae60" stroke-width={0.08} />
@@ -352,9 +363,9 @@
           {/each}
 
           <!-- Right edge measurements -->
-          {#each edgeBy as by, i}
+          {#each edgeByRight as by, i}
             {#if i > 0}
-              {@const prev = edgeBy[i-1]}
+              {@const prev = edgeByRight[i-1]}
               {@const dist = by - prev}
               {#if dist > 0.3}
                 <line x1={L.boardRight+eoff} y1={prev} x2={L.boardRight+eoff} y2={by} stroke="#8e44ad" stroke-width={0.08} />
