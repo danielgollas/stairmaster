@@ -256,79 +256,32 @@
           {@const fs = 0.8}
           {@const dotR = 0.3}
 
-          <!-- Project stringer vertices onto each board edge -->
-          <!-- Edge points: only vertices that are ON or very close to an edge (within 1") -->
-          {@const edgeTol = 1.0}
-          {@const botEdgePts = (() => {
-            const pts = [L.boardLeft];
-            for (const p of L.pts) {
-              if (Math.abs(p.by - L.sw) < edgeTol) pts.push(p.bx);
-            }
-            pts.push(L.boardRight);
-            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
-          })()}
-          {@const topEdgePts = (() => {
-            const pts = [L.boardLeft];
-            for (const p of L.pts) {
-              if (Math.abs(p.by) < edgeTol) pts.push(p.bx);
-            }
-            pts.push(L.boardRight);
-            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
-          })()}
-          {@const leftEdgePts = (() => {
-            const pts = [0];
-            for (const p of L.pts) {
-              if (Math.abs(p.bx - L.boardLeft) < edgeTol && p.by > edgeTol && p.by < L.sw - edgeTol)
-                pts.push(p.by);
-            }
-            pts.push(L.sw);
-            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
-          })()}
-          {@const rightEdgeCrossings = (() => {
-            const pts = [0];
-            for (const p of L.pts) {
-              if (Math.abs(p.bx - L.boardRight) < edgeTol && p.by > edgeTol && p.by < L.sw - edgeTol)
-                pts.push(p.by);
-            }
-            pts.push(L.sw);
-            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
-          })()}
-
-          <!-- Letter counter for labeling dots -->
-          {@const letterIdx = { val: 0 }}
-          {@const nextLetter = () => {
-            const i = letterIdx.val++;
-            return i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(65 + Math.floor(i/26) - 1) + String.fromCharCode(65 + i%26);
-          }}
-
-          <!-- Collect labeled points: edges + internal stringer vertices -->
+          <!-- All labeled points: 4 board corners + stringer cut vertices -->
+          <!-- Analytically determined — these are the exact points from the stringer path -->
           {@const allPoints = (() => {
             const points = [];
-            // Bottom edge
-            for (const bx of botEdgePts)
-              points.push({ bx, by: L.sw, edge: 'bottom' });
-            // Top edge
-            for (const bx of topEdgePts)
-              points.push({ bx, by: 0, edge: 'top' });
-            // Left edge (not corners)
-            for (const by of leftEdgePts)
-              if (by > 0.01 && by < L.sw - 0.01)
-                points.push({ bx: L.boardLeft, by, edge: 'left' });
-            // Right edge (not corners)
-            for (const by of rightEdgeCrossings)
-              if (by > 0.01 && by < L.sw - 0.01)
-                points.push({ bx: L.boardRight, by, edge: 'right' });
-            // Internal vertices: stringer pts inside the board, deduped by distance
-            const internals = [];
+            // 4 board corners
+            points.push({ bx: L.boardLeft, by: 0, edge: 'corner', name: 'TL' });
+            points.push({ bx: L.boardRight, by: 0, edge: 'corner', name: 'TR' });
+            points.push({ bx: L.boardRight, by: L.sw, edge: 'corner', name: 'BR' });
+            points.push({ bx: L.boardLeft, by: L.sw, edge: 'corner', name: 'BL' });
+
+            // Stringer cut vertices from L.pts
+            // Skip fill-gap points: these are at ((i+1)*run, treadY) for i < n-1
+            // They're not actual cut vertices, just stringer material ledges
+            const skipKeys = new Set();
+            for (let i = 0; i < L.n - 1; i++) {
+              const fg = L.toBoard((i + 1) * L.run, L.notchY(i));
+              skipKeys.add(Math.round(fg.bx * 10) + ',' + Math.round(fg.by * 10));
+            }
+
             for (const pt of L.pts) {
-              if (pt.by > 0.3 && pt.by < L.sw - 0.3 &&
-                  pt.bx > L.boardLeft + 0.3 && pt.bx < L.boardRight - 0.3) {
-                // Skip if too close to an existing internal point
-                const dup = internals.some(p => Math.sqrt((p.bx-pt.bx)**2 + (p.by-pt.by)**2) < 2);
-                if (!dup) internals.push({ bx: pt.bx, by: pt.by, edge: 'internal' });
+              const key = Math.round(pt.bx * 10) + ',' + Math.round(pt.by * 10);
+              if (!skipKeys.has(key)) {
+                points.push({ bx: pt.bx, by: pt.by, edge: 'cut' });
               }
             }
-            points.push(...internals);
+
             // Assign letters
             let li = 0;
             for (const p of points) {
@@ -337,6 +290,20 @@
             }
             return points;
           })()}
+
+          <!-- Edge measurement arrays: project cut points onto edges -->
+          {@const botEdgePts = (() => {
+            const pts = [L.boardLeft, L.boardRight];
+            for (const p of allPoints) if (p.edge === 'cut') pts.push(p.bx);
+            return [...new Set(pts.map(v => Math.round(v * 100) / 100))].sort((a, b) => a - b);
+          })()}
+          {@const topEdgePts = botEdgePts}
+          {@const leftEdgePts = (() => {
+            const pts = [0, L.sw];
+            for (const p of allPoints) if (p.edge === 'cut') pts.push(Math.max(0, Math.min(L.sw, p.by)));
+            return [...new Set(pts.map(v => Math.round(v * 100) / 100))].sort((a, b) => a - b);
+          })()}
+          {@const rightEdgeCrossings = leftEdgePts}
 
           <!-- Draw all labeled dots -->
           {#each allPoints as pt}
