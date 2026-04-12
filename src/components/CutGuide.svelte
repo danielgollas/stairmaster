@@ -14,14 +14,19 @@
   let isPanning = $state(false);
   let panStart = { x: 0, y: 0, vx: 0, vy: 0 };
 
-  function initView(totalW, totalH, scale) {
-    if (viewW === 0) {
+  // Init view when layout changes
+  $effect(() => {
+    if (layout && viewW === 0) {
+      const margin = 15;
+      const totalW = layout.maxBx - layout.minBx + margin * 2;
+      const totalH = layout.maxBy - layout.minBy + margin * 2;
+      const s = Math.min(svgWidth / totalW, svgHeight / totalH, 8);
       viewX = 0;
       viewY = 0;
-      viewW = totalW * scale;
-      viewH = totalH * scale;
+      viewW = totalW * s;
+      viewH = totalH * s;
     }
-  }
+  });
 
   function handleWheel(e) {
     e.preventDefault();
@@ -234,7 +239,6 @@
     {@const ox = -L.minBx + margin}
     {@const oy = -L.minBy + margin}
 
-    {initView(totalW, totalH, scale) || ''}
     <svg
       bind:this={svgEl}
       viewBox="{viewX} {viewY} {viewW} {viewH}"
