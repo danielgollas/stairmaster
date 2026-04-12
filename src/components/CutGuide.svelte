@@ -4,6 +4,61 @@
   let svgWidth = $state(800);
   let svgHeight = $state(300);
   let container;
+  let svgEl;
+
+  // Pan and zoom state
+  let viewX = $state(0);
+  let viewY = $state(0);
+  let viewW = $state(0);
+  let viewH = $state(0);
+  let isPanning = $state(false);
+  let panStart = { x: 0, y: 0, vx: 0, vy: 0 };
+
+  function initView(totalW, totalH, scale) {
+    if (viewW === 0) {
+      viewX = 0;
+      viewY = 0;
+      viewW = totalW * scale;
+      viewH = totalH * scale;
+    }
+  }
+
+  function handleWheel(e) {
+    e.preventDefault();
+    const rect = svgEl.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width * viewW + viewX;
+    const my = (e.clientY - rect.top) / rect.height * viewH + viewY;
+    const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+    const nw = viewW * factor;
+    const nh = viewH * factor;
+    viewX = mx - (mx - viewX) * factor;
+    viewY = my - (my - viewY) * factor;
+    viewW = nw;
+    viewH = nh;
+  }
+
+  function handleMouseDown(e) {
+    if (e.button !== 0) return;
+    isPanning = true;
+    panStart = { x: e.clientX, y: e.clientY, vx: viewX, vy: viewY };
+  }
+
+  function handleMouseMove(e) {
+    if (!isPanning) return;
+    const rect = svgEl.getBoundingClientRect();
+    const dx = (e.clientX - panStart.x) / rect.width * viewW;
+    const dy = (e.clientY - panStart.y) / rect.height * viewH;
+    viewX = panStart.vx - dx;
+    viewY = panStart.vy - dy;
+  }
+
+  function handleMouseUp() {
+    isPanning = false;
+  }
+
+  function resetView() {
+    viewW = 0;  // triggers re-init
+  }
 
   // Compute the stringer layout on a flat board
   let layout = $derived.by(() => {
@@ -179,11 +234,18 @@
     {@const ox = -L.minBx + margin}
     {@const oy = -L.minBy + margin}
 
+    {initView(totalW, totalH, scale) || ''}
     <svg
-      viewBox="0 0 {totalW * scale} {totalH * scale}"
+      bind:this={svgEl}
+      viewBox="{viewX} {viewY} {viewW} {viewH}"
       width="100%"
       height="100%"
-      style="background: white;"
+      style="background: white; cursor: {isPanning ? 'grabbing' : 'grab'};"
+      onwheel={handleWheel}
+      onmousedown={handleMouseDown}
+      onmousemove={handleMouseMove}
+      onmouseup={handleMouseUp}
+      onmouseleave={handleMouseUp}
     >
       <g transform="scale({scale}) translate({ox},{oy})">
         <!-- Board outline (rectangle covering full stringer extent) -->
