@@ -263,28 +263,6 @@
           stroke-width={0.5 / scale}
         />
 
-        <!-- 1" grid on the board -->
-        {#each Array(Math.ceil(L.boardRight - L.boardLeft) + 1) as _, i}
-          <line
-            x1={L.boardLeft + i}
-            y1={0}
-            x2={L.boardLeft + i}
-            y2={L.sw}
-            stroke={i % 5 === 0 ? "#bbb" : "#ddd"}
-            stroke-width={(i % 5 === 0 ? 0.3 : 0.15) / scale}
-          />
-        {/each}
-        {#each Array(Math.ceil(L.sw) + 1) as _, i}
-          <line
-            x1={L.boardLeft}
-            y1={i}
-            x2={L.boardRight}
-            y2={i}
-            stroke={i % 5 === 0 ? "#bbb" : "#ddd"}
-            stroke-width={(i % 5 === 0 ? 0.3 : 0.15) / scale}
-          />
-        {/each}
-
         <!-- Cut lines (stringer outline) -->
         <path
           d={pathD(L.pts)}
