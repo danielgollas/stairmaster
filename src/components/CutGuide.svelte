@@ -256,130 +256,204 @@
           {@const fs = 0.8}
           {@const dotR = 0.3}
 
-          <!-- Collect all points where stringer outline crosses the board edges -->
-          <!-- Bottom edge (y=sw) and top edge (y=0) in board coords -->
-          <!-- Each stringer point is already in board coords via L.pts -->
-
-          <!-- Bottom edge crossings: find where stringer outline segments cross y=sw -->
+          <!-- Compute board-edge intersection points explicitly from stringer geometry -->
+          <!-- Bottom edge (y=sw): where each riser cut and the plumb cuts cross -->
           {@const botEdgePts = (() => {
-            const pts = [L.boardLeft];  // board left corner
-            // The stringer cuts cross the bottom edge at specific bx positions
-            // These are where the diagonal bottom edge of the stringer meets y=sw
-            for (let k = 0; k < L.pts.length; k++) {
-              const p1 = L.pts[k];
-              const p2 = L.pts[(k + 1) % L.pts.length];
-              // Check if segment crosses y=sw
-              if ((p1.by <= L.sw && p2.by >= L.sw) || (p1.by >= L.sw && p2.by <= L.sw)) {
-                const t = (L.sw - p1.by) / (p2.by - p1.by);
-                const bx = p1.bx + t * (p2.bx - p1.bx);
-                pts.push(bx);
-              }
-            }
-            pts.push(L.boardRight);  // board right corner
-            return pts.sort((a, b) => a - b);
-          })()}
-
-          <!-- Top edge crossings: find where stringer outline segments cross y=0 -->
-          {@const topEdgePts = (() => {
             const pts = [L.boardLeft];
-            for (let k = 0; k < L.pts.length; k++) {
-              const p1 = L.pts[k];
-              const p2 = L.pts[(k + 1) % L.pts.length];
-              if ((p1.by <= 0 && p2.by >= 0) || (p1.by >= 0 && p2.by <= 0)) {
-                if (Math.abs(p2.by - p1.by) > 0.001) {
-                  const t = (0 - p1.by) / (p2.by - p1.by);
-                  const bx = p1.bx + t * (p2.bx - p1.bx);
-                  pts.push(bx);
-                }
-              }
+            // Each notch: the riser cut line (vertical in installed frame) crosses bottom edge
+            for (let i = 0; i < L.n; i++) {
+              const riserX = i * L.run;
+              const prevY = i > 0 ? L.notchY(i - 1) : 0;
+              // Riser bottom point in board coords
+              const rB = L.toBoard(riserX, prevY);
+              if (rB.by >= L.sw - 0.5) pts.push(rB.bx);  // near bottom edge
+              // Tread end point
+              const td = L.notches[i].td;
+              const tE = L.toBoard(riserX + td, L.notchY(i));
+              if (tE.by >= L.sw - 0.5) pts.push(tE.bx);
             }
+            // Right plumb bottom
+            const pBot = L.toBoard(L.topX, L.botAtX0 + L.topX * L.slopeRatio);
+            pts.push(pBot.bx);
             pts.push(L.boardRight);
-            return pts.sort((a, b) => a - b);
-          })()}
-
-          <!-- Left edge: vertical distances from corners to first cut intersection -->
-          {@const leftEdgePts = (() => {
-            const pts = [0];  // top-left corner (y=0)
-            for (let k = 0; k < L.pts.length; k++) {
-              const p1 = L.pts[k];
-              const p2 = L.pts[(k + 1) % L.pts.length];
-              const minBx = Math.min(p1.bx, p2.bx);
-              const maxBx = Math.max(p1.bx, p2.bx);
-              if (minBx <= L.boardLeft + 0.5 && maxBx >= L.boardLeft - 0.5) {
-                // Segment near left edge — find y at x=boardLeft
-                if (Math.abs(p2.bx - p1.bx) > 0.001) {
-                  const t = (L.boardLeft - p1.bx) / (p2.bx - p1.bx);
-                  if (t >= -0.01 && t <= 1.01) {
-                    const by = p1.by + t * (p2.by - p1.by);
-                    if (by > 0.1 && by < L.sw - 0.1) pts.push(by);
-                  }
-                }
-              }
-            }
-            pts.push(L.sw);  // bottom-left corner
             return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a, b) => a - b);
           })()}
 
-          <!-- Draw dots and measurements on bottom edge -->
+          <!-- Top edge (y=0): where seat and plumb cuts cross -->
+          {@const topEdgePts = (() => {
+            const pts = [L.boardLeft];
+            // Seat origin (where seat meets first riser)
+            const sO = L.toBoard(0, 0);
+            if (Math.abs(sO.by) < 0.5) pts.push(sO.bx);
+            // Each notch riser top (where riser meets tread) - check if near top edge
+            for (let i = 0; i < L.n; i++) {
+              const rT = L.toBoard(i * L.run, L.notchY(i));
+              if (rT.by <= 0.5) pts.push(rT.bx);
+              // Tread right end
+              const td = L.notches[i].td;
+              const tE = L.toBoard(i * L.run + td, L.notchY(i));
+              if (tE.by <= 0.5) pts.push(tE.bx);
+            }
+            // Right plumb top
+            const pTop = L.toBoard(L.topX, L.topY);
+            pts.push(pTop.bx);
+            pts.push(L.boardRight);
+            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a, b) => a - b);
+          })()}
+
+          <!-- Left edge: seat end and seat origin heights -->
+          {@const leftEdgePts = (() => {
+            const pts = [0];  // top-left (y=0)
+            // The stringer seat end is near the left edge
+            const sE = L.seatEnd;
+            if (Math.abs(sE.bx - L.boardLeft) < 1) pts.push(sE.by);
+            // The stringer bottom-left plumb
+            const bL = L.toBoard(0, L.botAtX0);
+            if (Math.abs(bL.bx - L.boardLeft) < 2) pts.push(bL.by);
+            pts.push(L.sw);  // bottom-left
+            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a, b) => a - b);
+          })()}
+
+          <!-- Letter counter for labeling dots -->
+          {@const letterIdx = { val: 0 }}
+          {@const nextLetter = () => {
+            const i = letterIdx.val++;
+            return i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(65 + Math.floor(i/26) - 1) + String.fromCharCode(65 + i%26);
+          }}
+
+          <!-- Collect ALL labeled points: edges + internal vertices -->
+          {@const allPoints = (() => {
+            const points = [];
+            // Bottom edge points
+            for (const bx of botEdgePts) {
+              points.push({ bx, by: L.sw, edge: 'bottom', letter: '' });
+            }
+            // Top edge points
+            for (const bx of topEdgePts) {
+              points.push({ bx, by: 0, edge: 'top', letter: '' });
+            }
+            // Left edge points (not corners, they're already in top/bottom)
+            for (const by of leftEdgePts) {
+              if (by > 0.1 && by < L.sw - 0.1)
+                points.push({ bx: L.boardLeft, by, edge: 'left', letter: '' });
+            }
+            // Right edge points
+            // Find stringer crossings on right edge
+            for (const pt of L.pts) {
+              if (Math.abs(pt.bx - L.boardRight) < 1 && pt.by > 0.5 && pt.by < L.sw - 0.5)
+                points.push({ bx: L.boardRight, by: pt.by, edge: 'right', letter: '' });
+            }
+            // Internal cut vertices
+            for (const pt of L.pts) {
+              if (pt.by > 0.5 && pt.by < L.sw - 0.5 && pt.bx > L.boardLeft + 1 && pt.bx < L.boardRight - 1)
+                points.push({ bx: pt.bx, by: pt.by, edge: 'internal', letter: '' });
+            }
+            // Assign letters
+            let li = 0;
+            for (const p of points) {
+              p.letter = li < 26 ? String.fromCharCode(65 + li) : String.fromCharCode(65 + Math.floor(li/26) - 1) + String.fromCharCode(65 + li%26);
+              li++;
+            }
+            return points;
+          })()}
+
+          <!-- Draw all labeled dots -->
+          {#each allPoints as pt}
+            {@const isEdge = pt.edge !== 'internal'}
+            {@const r = isEdge ? dotR : dotR * 0.7}
+            {@const color = pt.edge === 'bottom' ? '#c0392b' : pt.edge === 'top' ? '#2980b9' : pt.edge === 'left' ? '#27ae60' : '#c0392b'}
+            <circle cx={pt.bx} cy={pt.by} r={r} fill={color} opacity={isEdge ? 1 : 0.6} />
+            <!-- Letter label -->
+            {@const lx = pt.edge === 'bottom' ? pt.bx : pt.edge === 'top' ? pt.bx : pt.edge === 'left' ? pt.bx - 1 : pt.bx + 0.6}
+            {@const ly = pt.edge === 'bottom' ? pt.by + 0.9 : pt.edge === 'top' ? pt.by - 0.5 : pt.edge === 'left' ? pt.by : pt.by - 0.4}
+            <text x={lx} y={ly} text-anchor="middle" font-size={0.6} fill={color} font-weight="bold">
+              {pt.letter}
+            </text>
+          {/each}
+
+          <!-- Measurements on bottom edge -->
           {#each botEdgePts as bx, i}
-            <circle cx={bx} cy={L.sw} r={dotR} fill="#c0392b" />
             {#if i > 0}
               {@const dist = bx - botEdgePts[i-1]}
-              {#if dist > 1}
-                <text x={(bx + botEdgePts[i-1]) / 2} y={L.sw + 1.2}
+              {#if dist > 0.5}
+                <line x1={botEdgePts[i-1]} y1={L.sw+0.5} x2={bx} y2={L.sw+0.5}
+                  stroke="#c0392b" stroke-width={0.15/scale} />
+                <line x1={botEdgePts[i-1]} y1={L.sw+0.3} x2={botEdgePts[i-1]} y2={L.sw+0.7}
+                  stroke="#c0392b" stroke-width={0.15/scale} />
+                <line x1={bx} y1={L.sw+0.3} x2={bx} y2={L.sw+0.7}
+                  stroke="#c0392b" stroke-width={0.15/scale} />
+                <text x={(bx + botEdgePts[i-1]) / 2} y={L.sw + 1.5}
                   text-anchor="middle" font-size={fs} fill="#333">
                   {fmtFrac(dist)}
                 </text>
-                <!-- Tick marks -->
-                <line x1={botEdgePts[i-1]} y1={L.sw-0.3} x2={botEdgePts[i-1]} y2={L.sw+0.3}
-                  stroke="#c0392b" stroke-width={0.15/scale} />
-                <line x1={bx} y1={L.sw-0.3} x2={bx} y2={L.sw+0.3}
-                  stroke="#c0392b" stroke-width={0.15/scale} />
               {/if}
             {/if}
           {/each}
 
-          <!-- Draw dots and measurements on top edge -->
+          <!-- Measurements on top edge -->
           {#each topEdgePts as bx, i}
-            <circle cx={bx} cy={0} r={dotR} fill="#2980b9" />
             {#if i > 0}
               {@const dist = bx - topEdgePts[i-1]}
-              {#if dist > 1}
-                <text x={(bx + topEdgePts[i-1]) / 2} y={-0.8}
+              {#if dist > 0.5}
+                <line x1={topEdgePts[i-1]} y1={-0.5} x2={bx} y2={-0.5}
+                  stroke="#2980b9" stroke-width={0.15/scale} />
+                <line x1={topEdgePts[i-1]} y1={-0.3} x2={topEdgePts[i-1]} y2={-0.7}
+                  stroke="#2980b9" stroke-width={0.15/scale} />
+                <line x1={bx} y1={-0.3} x2={bx} y2={-0.7}
+                  stroke="#2980b9" stroke-width={0.15/scale} />
+                <text x={(bx + topEdgePts[i-1]) / 2} y={-1.2}
                   text-anchor="middle" font-size={fs} fill="#333">
                   {fmtFrac(dist)}
                 </text>
-                <line x1={topEdgePts[i-1]} y1={-0.3} x2={topEdgePts[i-1]} y2={0.3}
-                  stroke="#2980b9" stroke-width={0.15/scale} />
-                <line x1={bx} y1={-0.3} x2={bx} y2={0.3}
-                  stroke="#2980b9" stroke-width={0.15/scale} />
               {/if}
             {/if}
           {/each}
 
-          <!-- Draw dots and measurements on left edge -->
+          <!-- Measurements on left edge -->
           {#each leftEdgePts as by, i}
-            <circle cx={L.boardLeft} cy={by} r={dotR} fill="#27ae60" />
             {#if i > 0}
               {@const dist = by - leftEdgePts[i-1]}
-              {#if dist > 0.5}
-                <text x={L.boardLeft - 1.2} y={(by + leftEdgePts[i-1]) / 2 + 0.3}
+              {#if dist > 0.3}
+                <line x1={L.boardLeft-0.5} y1={leftEdgePts[i-1]} x2={L.boardLeft-0.5} y2={by}
+                  stroke="#27ae60" stroke-width={0.15/scale} />
+                <line x1={L.boardLeft-0.3} y1={leftEdgePts[i-1]} x2={L.boardLeft-0.7} y2={leftEdgePts[i-1]}
+                  stroke="#27ae60" stroke-width={0.15/scale} />
+                <line x1={L.boardLeft-0.3} y1={by} x2={L.boardLeft-0.7} y2={by}
+                  stroke="#27ae60" stroke-width={0.15/scale} />
+                <text x={L.boardLeft - 1.5} y={(by + leftEdgePts[i-1]) / 2 + 0.3}
                   text-anchor="middle" font-size={fs} fill="#333"
-                  transform="rotate(-90, {L.boardLeft - 1.2}, {(by + leftEdgePts[i-1]) / 2 + 0.3})">
+                  transform="rotate(-90, {L.boardLeft - 1.5}, {(by + leftEdgePts[i-1]) / 2 + 0.3})">
                   {fmtFrac(dist)}
                 </text>
-                <line x1={L.boardLeft-0.3} y1={leftEdgePts[i-1]} x2={L.boardLeft+0.3} y2={leftEdgePts[i-1]}
-                  stroke="#27ae60" stroke-width={0.15/scale} />
-                <line x1={L.boardLeft-0.3} y1={by} x2={L.boardLeft+0.3} y2={by}
-                  stroke="#27ae60" stroke-width={0.15/scale} />
               {/if}
             {/if}
           {/each}
 
-          <!-- Notch dots at cut vertices (inside the board) -->
-          {#each L.pts as pt}
-            {#if pt.by > 0.1 && pt.by < L.sw - 0.1 && pt.bx > L.boardLeft + 0.5 && pt.bx < L.boardRight - 0.5}
-              <circle cx={pt.bx} cy={pt.by} r={dotR * 0.7} fill="#c0392b" opacity={0.5} />
+          <!-- Measurements on right edge -->
+          {@const rightEdgePts = (() => {
+            const pts = [0];
+            for (const p of allPoints) {
+              if (p.edge === 'right') pts.push(p.by);
+            }
+            pts.push(L.sw);
+            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
+          })()}
+          {#each rightEdgePts as by, i}
+            {#if i > 0}
+              {@const dist = by - rightEdgePts[i-1]}
+              {#if dist > 0.3}
+                <line x1={L.boardRight+0.5} y1={rightEdgePts[i-1]} x2={L.boardRight+0.5} y2={by}
+                  stroke="#8e44ad" stroke-width={0.15/scale} />
+                <line x1={L.boardRight+0.3} y1={rightEdgePts[i-1]} x2={L.boardRight+0.7} y2={rightEdgePts[i-1]}
+                  stroke="#8e44ad" stroke-width={0.15/scale} />
+                <line x1={L.boardRight+0.3} y1={by} x2={L.boardRight+0.7} y2={by}
+                  stroke="#8e44ad" stroke-width={0.15/scale} />
+                <text x={L.boardRight + 1.5} y={(by + rightEdgePts[i-1]) / 2 + 0.3}
+                  text-anchor="middle" font-size={fs} fill="#333"
+                  transform="rotate(90, {L.boardRight + 1.5}, {(by + rightEdgePts[i-1]) / 2 + 0.3})">
+                  {fmtFrac(dist)}
+                </text>
+              {/if}
             {/if}
           {/each}
 
