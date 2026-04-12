@@ -251,164 +251,175 @@
           {L.sw}" (2x12)
         </text>
 
-        <!-- Detailed measurements for each cut -->
+        <!-- Edge measurements: dots where cuts cross board edges, distances between them -->
         {#if true}
-        {@const tk = 0.6}
-        {@const dimOff = 1.8}
-        {#each L.notches as notch, i}
-          {@const riserX = notch.riserX}
-          {@const treadY = notch.treadY}
-          {@const prevY = i > 0 ? L.notchY(i - 1) : 0}
-          {@const td = notch.td}
-          {@const rb = L.rb}
+          {@const fs = 0.8}
+          {@const dotR = 0.3}
 
-          <!-- Tread cut: dimension line with ticks -->
-          {@const tS = L.toBoard(riserX + rb, treadY)}
-          {@const tE = L.toBoard(riserX + td, treadY)}
-          {@const tDx = tE.bx - tS.bx}
-          {@const tDy = tE.by - tS.by}
-          {@const tHyp = Math.sqrt(tDx*tDx + tDy*tDy)}
-          {@const tNx = -tDy/tHyp}
-          {@const tNy = tDx/tHyp}
-          <!-- Extension lines from cut to dimension line -->
-          <line x1={tS.bx} y1={tS.by} x2={tS.bx+tNx*dimOff} y2={tS.by+tNy*dimOff}
-            stroke="#2980b9" stroke-width={0.15/scale} opacity={0.5} />
-          <line x1={tE.bx} y1={tE.by} x2={tE.bx+tNx*dimOff} y2={tE.by+tNy*dimOff}
-            stroke="#2980b9" stroke-width={0.15/scale} opacity={0.5} />
-          <!-- Dimension line -->
-          {@const dS_bx = tS.bx+tNx*(dimOff-0.3)}
-          {@const dS_by = tS.by+tNy*(dimOff-0.3)}
-          {@const dE_bx = tE.bx+tNx*(dimOff-0.3)}
-          {@const dE_by = tE.by+tNy*(dimOff-0.3)}
-          <line x1={dS_bx} y1={dS_by} x2={dE_bx} y2={dE_by}
-            stroke="#2980b9" stroke-width={0.25/scale} />
-          <!-- Tick marks -->
-          <line x1={dS_bx-tNx*tk/2} y1={dS_by-tNy*tk/2} x2={dS_bx+tNx*tk/2} y2={dS_by+tNy*tk/2}
-            stroke="#2980b9" stroke-width={0.25/scale} />
-          <line x1={dE_bx-tNx*tk/2} y1={dE_by-tNy*tk/2} x2={dE_bx+tNx*tk/2} y2={dE_by+tNy*tk/2}
-            stroke="#2980b9" stroke-width={0.25/scale} />
-          <text x={(dS_bx+dE_bx)/2+tNx*0.8} y={(dS_by+dE_by)/2+tNy*0.8}
-            text-anchor="middle" font-size={1.1} fill="#2980b9">
-            {fmtFrac(td)} T{i+1}
+          <!-- Collect all points where stringer outline crosses the board edges -->
+          <!-- Bottom edge (y=sw) and top edge (y=0) in board coords -->
+          <!-- Each stringer point is already in board coords via L.pts -->
+
+          <!-- Bottom edge crossings: find where stringer outline segments cross y=sw -->
+          {@const botEdgePts = (() => {
+            const pts = [L.boardLeft];  // board left corner
+            // The stringer cuts cross the bottom edge at specific bx positions
+            // These are where the diagonal bottom edge of the stringer meets y=sw
+            for (let k = 0; k < L.pts.length; k++) {
+              const p1 = L.pts[k];
+              const p2 = L.pts[(k + 1) % L.pts.length];
+              // Check if segment crosses y=sw
+              if ((p1.by <= L.sw && p2.by >= L.sw) || (p1.by >= L.sw && p2.by <= L.sw)) {
+                const t = (L.sw - p1.by) / (p2.by - p1.by);
+                const bx = p1.bx + t * (p2.bx - p1.bx);
+                pts.push(bx);
+              }
+            }
+            pts.push(L.boardRight);  // board right corner
+            return pts.sort((a, b) => a - b);
+          })()}
+
+          <!-- Top edge crossings: find where stringer outline segments cross y=0 -->
+          {@const topEdgePts = (() => {
+            const pts = [L.boardLeft];
+            for (let k = 0; k < L.pts.length; k++) {
+              const p1 = L.pts[k];
+              const p2 = L.pts[(k + 1) % L.pts.length];
+              if ((p1.by <= 0 && p2.by >= 0) || (p1.by >= 0 && p2.by <= 0)) {
+                if (Math.abs(p2.by - p1.by) > 0.001) {
+                  const t = (0 - p1.by) / (p2.by - p1.by);
+                  const bx = p1.bx + t * (p2.bx - p1.bx);
+                  pts.push(bx);
+                }
+              }
+            }
+            pts.push(L.boardRight);
+            return pts.sort((a, b) => a - b);
+          })()}
+
+          <!-- Left edge: vertical distances from corners to first cut intersection -->
+          {@const leftEdgePts = (() => {
+            const pts = [0];  // top-left corner (y=0)
+            for (let k = 0; k < L.pts.length; k++) {
+              const p1 = L.pts[k];
+              const p2 = L.pts[(k + 1) % L.pts.length];
+              const minBx = Math.min(p1.bx, p2.bx);
+              const maxBx = Math.max(p1.bx, p2.bx);
+              if (minBx <= L.boardLeft + 0.5 && maxBx >= L.boardLeft - 0.5) {
+                // Segment near left edge — find y at x=boardLeft
+                if (Math.abs(p2.bx - p1.bx) > 0.001) {
+                  const t = (L.boardLeft - p1.bx) / (p2.bx - p1.bx);
+                  if (t >= -0.01 && t <= 1.01) {
+                    const by = p1.by + t * (p2.by - p1.by);
+                    if (by > 0.1 && by < L.sw - 0.1) pts.push(by);
+                  }
+                }
+              }
+            }
+            pts.push(L.sw);  // bottom-left corner
+            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a, b) => a - b);
+          })()}
+
+          <!-- Draw dots and measurements on bottom edge -->
+          {#each botEdgePts as bx, i}
+            <circle cx={bx} cy={L.sw} r={dotR} fill="#c0392b" />
+            {#if i > 0}
+              {@const dist = bx - botEdgePts[i-1]}
+              {#if dist > 1}
+                <text x={(bx + botEdgePts[i-1]) / 2} y={L.sw + 1.2}
+                  text-anchor="middle" font-size={fs} fill="#333">
+                  {fmtFrac(dist)}
+                </text>
+                <!-- Tick marks -->
+                <line x1={botEdgePts[i-1]} y1={L.sw-0.3} x2={botEdgePts[i-1]} y2={L.sw+0.3}
+                  stroke="#c0392b" stroke-width={0.15/scale} />
+                <line x1={bx} y1={L.sw-0.3} x2={bx} y2={L.sw+0.3}
+                  stroke="#c0392b" stroke-width={0.15/scale} />
+              {/if}
+            {/if}
+          {/each}
+
+          <!-- Draw dots and measurements on top edge -->
+          {#each topEdgePts as bx, i}
+            <circle cx={bx} cy={0} r={dotR} fill="#2980b9" />
+            {#if i > 0}
+              {@const dist = bx - topEdgePts[i-1]}
+              {#if dist > 1}
+                <text x={(bx + topEdgePts[i-1]) / 2} y={-0.8}
+                  text-anchor="middle" font-size={fs} fill="#333">
+                  {fmtFrac(dist)}
+                </text>
+                <line x1={topEdgePts[i-1]} y1={-0.3} x2={topEdgePts[i-1]} y2={0.3}
+                  stroke="#2980b9" stroke-width={0.15/scale} />
+                <line x1={bx} y1={-0.3} x2={bx} y2={0.3}
+                  stroke="#2980b9" stroke-width={0.15/scale} />
+              {/if}
+            {/if}
+          {/each}
+
+          <!-- Draw dots and measurements on left edge -->
+          {#each leftEdgePts as by, i}
+            <circle cx={L.boardLeft} cy={by} r={dotR} fill="#27ae60" />
+            {#if i > 0}
+              {@const dist = by - leftEdgePts[i-1]}
+              {#if dist > 0.5}
+                <text x={L.boardLeft - 1.2} y={(by + leftEdgePts[i-1]) / 2 + 0.3}
+                  text-anchor="middle" font-size={fs} fill="#333"
+                  transform="rotate(-90, {L.boardLeft - 1.2}, {(by + leftEdgePts[i-1]) / 2 + 0.3})">
+                  {fmtFrac(dist)}
+                </text>
+                <line x1={L.boardLeft-0.3} y1={leftEdgePts[i-1]} x2={L.boardLeft+0.3} y2={leftEdgePts[i-1]}
+                  stroke="#27ae60" stroke-width={0.15/scale} />
+                <line x1={L.boardLeft-0.3} y1={by} x2={L.boardLeft+0.3} y2={by}
+                  stroke="#27ae60" stroke-width={0.15/scale} />
+              {/if}
+            {/if}
+          {/each}
+
+          <!-- Notch dots at cut vertices (inside the board) -->
+          {#each L.pts as pt}
+            {#if pt.by > 0.1 && pt.by < L.sw - 0.1 && pt.bx > L.boardLeft + 0.5 && pt.bx < L.boardRight - 0.5}
+              <circle cx={pt.bx} cy={pt.by} r={dotR * 0.7} fill="#c0392b" opacity={0.5} />
+            {/if}
+          {/each}
+
+          <!-- Cut labels on the stringer outline -->
+          {#each L.notches as notch, i}
+            {@const riserX = notch.riserX}
+            {@const treadY = notch.treadY}
+            {@const prevY = i > 0 ? L.notchY(i - 1) : 0}
+            {@const td = notch.td}
+            {@const tS = L.toBoard(riserX, treadY)}
+            {@const tE = L.toBoard(riserX + td, treadY)}
+            {@const rB = L.toBoard(riserX, prevY)}
+            <text x={(tS.bx+tE.bx)/2} y={(tS.by+tE.by)/2 - 0.5}
+              text-anchor="middle" font-size={fs} fill="#2980b9">
+              {fmtFrac(td)} T{i+1}
+            </text>
+            <text x={(rB.bx+tS.bx)/2 - 0.8} y={(rB.by+tS.by)/2}
+              text-anchor="end" font-size={fs} fill="#e67e22">
+              {fmtFrac(treadY - prevY)} R{i+1}
+            </text>
+          {/each}
+
+          <!-- Seat and plumb labels -->
+          <text x={(L.seatEnd.bx+L.seatOrigin.bx)/2} y={(L.seatEnd.by+L.seatOrigin.by)/2 - 0.5}
+            text-anchor="middle" font-size={fs} fill="#27ae60">
+            {fmtFrac(L.seatEndXCalc)} seat
           </text>
-
-          <!-- Riser cut: dimension line with ticks -->
-          {@const rB = L.toBoard(riserX, prevY)}
-          {@const rT = L.toBoard(riserX, treadY)}
-          {@const rDx = rT.bx - rB.bx}
-          {@const rDy = rT.by - rB.by}
-          {@const rHyp = Math.sqrt(rDx*rDx + rDy*rDy)}
-          {@const rNx = -rDy/rHyp}
-          {@const rNy = rDx/rHyp}
-          <line x1={rB.bx} y1={rB.by} x2={rB.bx-tNx*dimOff} y2={rB.by-tNy*dimOff}
-            stroke="#e67e22" stroke-width={0.15/scale} opacity={0.5} />
-          <line x1={rT.bx} y1={rT.by} x2={rT.bx-tNx*dimOff} y2={rT.by-tNy*dimOff}
-            stroke="#e67e22" stroke-width={0.15/scale} opacity={0.5} />
-          {@const rdS_bx = rB.bx-tNx*(dimOff-0.3)}
-          {@const rdS_by = rB.by-tNy*(dimOff-0.3)}
-          {@const rdE_bx = rT.bx-tNx*(dimOff-0.3)}
-          {@const rdE_by = rT.by-tNy*(dimOff-0.3)}
-          <line x1={rdS_bx} y1={rdS_by} x2={rdE_bx} y2={rdE_by}
-            stroke="#e67e22" stroke-width={0.25/scale} />
-          <line x1={rdS_bx+rNx*tk/2} y1={rdS_by+rNy*tk/2} x2={rdS_bx-rNx*tk/2} y2={rdS_by-rNy*tk/2}
-            stroke="#e67e22" stroke-width={0.25/scale} />
-          <line x1={rdE_bx+rNx*tk/2} y1={rdE_by+rNy*tk/2} x2={rdE_bx-rNx*tk/2} y2={rdE_by-rNy*tk/2}
-            stroke="#e67e22" stroke-width={0.25/scale} />
-          <text x={(rdS_bx+rdE_bx)/2-tNx*0.8} y={(rdS_by+rdE_by)/2-tNy*0.8}
-            text-anchor="middle" font-size={1.1} fill="#e67e22">
-            {fmtFrac(treadY - prevY)} R{i+1}
-          </text>
-
-          <!-- Small notch marks at cut intersections on the board edge -->
-          <!-- Tick at riser top (where riser meets tread) -->
-          {@const rTick = L.toBoard(riserX, treadY)}
-          <circle cx={rTick.bx} cy={rTick.by} r={0.4} fill="#c0392b" />
-          <!-- Tick at tread end -->
-          {@const tTick = L.toBoard(riserX + td, treadY)}
-          <circle cx={tTick.bx} cy={tTick.by} r={0.4} fill="#c0392b" />
-          <!-- Tick at riser bottom -->
-          {@const rBTick = L.toBoard(riserX, prevY)}
-          <circle cx={rBTick.bx} cy={rBTick.by} r={0.4} fill="#c0392b" />
-        {/each}
-
-        <!-- Seat bearing dimension with ticks -->
-        {#if true}
-          {@const seatLen = L.seatEndXCalc}
-          {@const sS = L.seatEnd}
-          {@const sE = L.seatOrigin}
-          {@const sDx = sE.bx - sS.bx}
-          {@const sDy = sE.by - sS.by}
-          {@const sHyp = Math.sqrt(sDx*sDx + sDy*sDy)}
-          {@const sNx = -sDy/sHyp}
-          {@const sNy = sDx/sHyp}
-          <!-- Extension lines -->
-          <line x1={sS.bx} y1={sS.by} x2={sS.bx+sNx*dimOff} y2={sS.by+sNy*dimOff}
-            stroke="#27ae60" stroke-width={0.15/scale} opacity={0.5} />
-          <line x1={sE.bx} y1={sE.by} x2={sE.bx+sNx*dimOff} y2={sE.by+sNy*dimOff}
-            stroke="#27ae60" stroke-width={0.15/scale} opacity={0.5} />
-          {@const sdS_bx = sS.bx+sNx*(dimOff-0.3)}
-          {@const sdS_by = sS.by+sNy*(dimOff-0.3)}
-          {@const sdE_bx = sE.bx+sNx*(dimOff-0.3)}
-          {@const sdE_by = sE.by+sNy*(dimOff-0.3)}
-          <line x1={sdS_bx} y1={sdS_by} x2={sdE_bx} y2={sdE_by}
-            stroke="#27ae60" stroke-width={0.3/scale} />
-          <line x1={sdS_bx+sNx*tk/2} y1={sdS_by+sNy*tk/2} x2={sdS_bx-sNx*tk/2} y2={sdS_by-sNy*tk/2}
-            stroke="#27ae60" stroke-width={0.3/scale} />
-          <line x1={sdE_bx+sNx*tk/2} y1={sdE_by+sNy*tk/2} x2={sdE_bx-sNx*tk/2} y2={sdE_by-sNy*tk/2}
-            stroke="#27ae60" stroke-width={0.3/scale} />
-          <text x={(sdS_bx+sdE_bx)/2+sNx*1} y={(sdS_by+sdE_by)/2+sNy*1}
-            text-anchor="middle" font-size={1.2} fill="#27ae60">
-            {fmtFrac(seatLen)} seat
-          </text>
-        {/if}
-
-        <!-- Top plumb cut dimension with ticks -->
-        {#if true}
-          {@const pT = L.toBoard(L.topX, L.topY)}
-          {@const pB = L.toBoard(L.topX, L.botAtX0 + L.topX * L.slopeRatio)}
-          {@const pLen = L.topY - (L.botAtX0 + L.topX * L.slopeRatio)}
-          {@const pDx = pT.bx - pB.bx}
-          {@const pDy = pT.by - pB.by}
-          {@const pHyp = Math.sqrt(pDx*pDx + pDy*pDy)}
-          {@const pNx = pDy/pHyp}
-          {@const pNy = -pDx/pHyp}
-          <!-- Extension lines to board edges -->
-          <line x1={pT.bx} y1={pT.by} x2={pT.bx+pNx*dimOff} y2={pT.by+pNy*dimOff}
-            stroke="#27ae60" stroke-width={0.15/scale} opacity={0.5} />
-          <line x1={pB.bx} y1={pB.by} x2={pB.bx+pNx*dimOff} y2={pB.by+pNy*dimOff}
-            stroke="#27ae60" stroke-width={0.15/scale} opacity={0.5} />
-          {@const pdS_bx = pB.bx+pNx*(dimOff-0.3)}
-          {@const pdS_by = pB.by+pNy*(dimOff-0.3)}
-          {@const pdE_bx = pT.bx+pNx*(dimOff-0.3)}
-          {@const pdE_by = pT.by+pNy*(dimOff-0.3)}
-          <line x1={pdS_bx} y1={pdS_by} x2={pdE_bx} y2={pdE_by}
-            stroke="#27ae60" stroke-width={0.3/scale} />
-          <line x1={pdS_bx-pNx*tk/2} y1={pdS_by-pNy*tk/2} x2={pdS_bx+pNx*tk/2} y2={pdS_by+pNy*tk/2}
-            stroke="#27ae60" stroke-width={0.3/scale} />
-          <line x1={pdE_bx-pNx*tk/2} y1={pdE_by-pNy*tk/2} x2={pdE_bx+pNx*tk/2} y2={pdE_by+pNy*tk/2}
-            stroke="#27ae60" stroke-width={0.3/scale} />
-          <text x={(pdS_bx+pdE_bx)/2+pNx*1.2} y={(pdS_by+pdE_by)/2+pNy*1.2}
-            text-anchor="middle" font-size={1.2} fill="#27ae60">
-            {fmtFrac(pLen)} plumb
-          </text>
-          <!-- Dashed lines from plumb cut to board edges -->
-          <line x1={pT.bx} y1={pT.by} x2={pT.bx} y2={0}
-            stroke="#c0392b" stroke-width={0.15/scale} stroke-dasharray="{0.5/scale},{0.5/scale}" opacity={0.3} />
-          <line x1={pB.bx} y1={pB.by} x2={pB.bx} y2={L.sw}
-            stroke="#c0392b" stroke-width={0.15/scale} stroke-dasharray="{0.5/scale},{0.5/scale}" opacity={0.3} />
-        {/if}
-
-        <!-- Seat cut lines to board edges -->
-        {#if true}
-          <line x1={L.seatEnd.bx} y1={L.seatEnd.by} x2={L.seatEnd.bx} y2={L.sw}
-            stroke="#c0392b" stroke-width={0.15/scale} stroke-dasharray="{0.5/scale},{0.5/scale}" opacity={0.3} />
-          <line x1={L.seatOrigin.bx} y1={L.seatOrigin.by} x2={L.seatOrigin.bx} y2={0}
-            stroke="#c0392b" stroke-width={0.15/scale} stroke-dasharray="{0.5/scale},{0.5/scale}" opacity={0.3} />
-        {/if}
+          {#if true}
+            {@const pTop = L.toBoard(L.topX, L.topY)}
+            {@const pBot = L.toBoard(L.topX, L.botAtX0 + L.topX * L.slopeRatio)}
+            {@const pLen = L.topY - (L.botAtX0 + L.topX * L.slopeRatio)}
+            <text x={(pTop.bx+pBot.bx)/2 + 1.5} y={(pTop.by+pBot.by)/2}
+              text-anchor="start" font-size={fs} fill="#27ae60">
+              {fmtFrac(pLen)} plumb
+            </text>
+          {/if}
 
         <!-- Bottom edge (uncut) label -->
-        <text x={(L.boardLeft + L.boardRight) / 2} y={L.sw + 6}
-          text-anchor="middle" font-size={1.5} fill="#7f8c8d">
+        <text x={(L.boardLeft + L.boardRight) / 2} y={L.sw + 3}
+          text-anchor="middle" font-size={1} fill="#7f8c8d">
           bottom edge (uncut)
         </text>
         {/if}
