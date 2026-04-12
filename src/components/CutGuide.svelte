@@ -261,20 +261,21 @@
             const v = [];
             const tb = L.toBoard;
 
-            // Use L.pts directly — these ARE the exact cut vertices
-            // Only skip the fill-gap points at ((i+1)*run, treadY)
-            const fillGaps = new Set();
-            for (let i = 0; i < L.n - 1; i++) {
-              // Fill-gap in installed coords: ((i+1)*run, notchY(i))
-              const fg = tb((i + 1) * L.run, L.notchY(i));
-              fillGaps.add(`${fg.bx.toFixed(4)},${fg.by.toFixed(4)}`);
+            // 11 exact cut vertices — no filtering needed
+            // 1. Seat heel
+            v.push(tb(L.seatEndXCalc, 0));
+            // 2. Seat origin (first riser bottom)
+            v.push(tb(0, 0));
+            // 3-10. Each notch: inside corner + tread end (4 notches × 2 = 8)
+            for (let i = 0; i < L.n; i++) {
+              const rX = i * L.run;
+              const tY = L.notchY(i);
+              const td = L.notches[i].td;
+              v.push(tb(rX, tY));          // inside corner
+              v.push(tb(rX + td, tY));     // tread end
             }
-            for (const pt of L.pts) {
-              const key = `${pt.bx.toFixed(4)},${pt.by.toFixed(4)}`;
-              if (!fillGaps.has(key)) {
-                v.push({ bx: pt.bx, by: pt.by });
-              }
-            }
+            // 11. Plumb cut bottom
+            v.push(tb(L.topX, L.botAtX0 + L.topX * L.slopeRatio));
 
             return v;
           })()}
