@@ -261,21 +261,23 @@
             const v = [];
             const tb = L.toBoard;
 
-            // 11 exact cut vertices — no filtering needed
-            // 1. Seat heel
-            v.push(tb(L.seatEndXCalc, 0));
-            // 2. Seat origin (first riser bottom)
-            v.push(tb(0, 0));
-            // 3-10. Each notch: inside corner + tread end (4 notches × 2 = 8)
+            // Use the EXACT point objects from L.pts (same objects that draw the outline)
+            // L.pts layout: [seatHeel, seatOrigin, R1top, T1end, fillgap?, R2top, T2end, ...]
+            // Skip fill-gap points (every 3rd point after index 2, for n-1 times)
+            const p = L.pts;
+            // Indices of actual cut vertices:
+            // 0=seatHeel, 1=seatOrigin
+            v.push(p[0], p[1]);
+            // For each notch: 2 points + optional fill-gap
+            // Notch i starts at index 2 + i*3 (for i<n-1) or 2 + (n-1)*3 + (i-(n-1))*2
+            let idx = 2;
             for (let i = 0; i < L.n; i++) {
-              const rX = i * L.run;
-              const tY = L.notchY(i);
-              const td = L.notches[i].td;
-              v.push(tb(rX, tY));          // inside corner
-              v.push(tb(rX + td, tY));     // tread end
+              v.push(p[idx]);     // riser top / inside corner
+              v.push(p[idx + 1]); // tread end
+              idx += (i < L.n - 1) ? 3 : 2; // skip fill-gap for non-last notches
             }
-            // 11. Plumb cut bottom
-            v.push(tb(L.topX, L.botAtX0 + L.topX * L.slopeRatio));
+            // Last 2: plumb top, plumb bottom — only include plumb bottom
+            v.push(p[p.length - 1]); // plumb bottom
 
             return v;
           })()}
