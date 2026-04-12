@@ -261,10 +261,27 @@
             const v = [];
             const tb = L.toBoard;
 
-            // Every point in L.pts is a vertex on the cut outline — use them all
-            for (const pt of L.pts) {
-              v.push(pt);
+            // 11 cut marks — the points where you mark the board
+            // These are the exact L.pts objects, indexed to skip fill-gap
+            // and plumb-top points (which aren't actual cut marks).
+            //
+            // L.pts indices (n=4 treads):
+            //  0: seat heel       1: seat origin
+            //  2: R1 top          3: T1 end         4: fill-gap (skip)
+            //  5: R2 top          6: T2 end         7: fill-gap (skip)
+            //  8: R3 top          9: T3 end        10: fill-gap (skip)
+            // 11: R4 top         12: T4 end
+            // 13: plumb top (skip)  14: plumb bottom
+            const p = L.pts;
+            v.push(p[0]);  // seat heel
+            v.push(p[1]);  // seat origin
+            let idx = 2;
+            for (let i = 0; i < L.n; i++) {
+              v.push(p[idx]);      // inside corner (riser top)
+              v.push(p[idx + 1]);  // tread end
+              idx += (i < L.n - 1) ? 3 : 2;
             }
+            v.push(p[p.length - 1]);  // plumb bottom
 
             return v;
           })()}
