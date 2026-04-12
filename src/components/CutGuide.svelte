@@ -352,137 +352,69 @@
             return points;
           })()}
 
-          <!-- Edge measurements: only along bottom and left edges (most useful for layout) -->
-          {@const botEdgePts = [L.boardLeft, L.boardRight]}
-          {@const topEdgePts = [L.boardLeft, L.boardRight]}
-          {@const leftEdgePts = [0, L.sw]}
-          {@const rightEdgeCrossings = [0, L.sw]}
-
           <!-- Draw all labeled dots -->
           {#each allPoints as pt}
-            {@const isEdge = pt.edge !== 'internal'}
-            {@const r = isEdge ? dotR : dotR * 0.7}
-            {@const color = pt.edge === 'bottom' ? '#c0392b' : pt.edge === 'top' ? '#2980b9' : pt.edge === 'left' ? '#27ae60' : '#c0392b'}
-            <circle cx={pt.bx} cy={pt.by} r={r} fill={color} opacity={isEdge ? 1 : 0.6} />
-            <!-- Letter label -->
-            {@const lx = pt.edge === 'bottom' ? pt.bx : pt.edge === 'top' ? pt.bx : pt.edge === 'left' ? pt.bx - 1 : pt.bx + 0.6}
-            {@const ly = pt.edge === 'bottom' ? pt.by + 0.9 : pt.edge === 'top' ? pt.by - 0.5 : pt.edge === 'left' ? pt.by : pt.by - 0.4}
-            <text x={lx} y={ly} text-anchor="middle" font-size={0.6} fill={color} font-weight="bold">
+            {@const color = pt.edge === 'corner' ? '#333' : '#c0392b'}
+            <circle cx={pt.bx} cy={pt.by} r={dotR} fill={color} />
+            <text x={pt.bx + 0.5} y={pt.by - 0.4} text-anchor="start" font-size={0.55} fill={color} font-weight="bold">
               {pt.letter}
             </text>
           {/each}
 
-          <!-- Measurements on bottom edge -->
-          {#each botEdgePts as bx, i}
+          <!-- Dimension lines between consecutive cut vertices, parallel to each segment -->
+          {@const off = 1.2}
+          {#each cutVertices as pt, i}
             {#if i > 0}
-              {@const dist = bx - botEdgePts[i-1]}
-              {#if dist > 0.5}
-                <line x1={botEdgePts[i-1]} y1={L.sw+0.5} x2={bx} y2={L.sw+0.5}
-                  stroke="#c0392b" stroke-width={0.15/scale} />
-                <line x1={botEdgePts[i-1]} y1={L.sw+0.3} x2={botEdgePts[i-1]} y2={L.sw+0.7}
-                  stroke="#c0392b" stroke-width={0.15/scale} />
-                <line x1={bx} y1={L.sw+0.3} x2={bx} y2={L.sw+0.7}
-                  stroke="#c0392b" stroke-width={0.15/scale} />
-                <text x={(bx + botEdgePts[i-1]) / 2} y={L.sw + 1.5}
-                  text-anchor="middle" font-size={fs} fill="#333">
-                  {fmtFrac(dist)}
-                </text>
-              {/if}
+              {@const p1 = cutVertices[i-1]}
+              {@const p2 = pt}
+              {@const dx = p2.bx - p1.bx}
+              {@const dy = p2.by - p1.by}
+              {@const len = Math.sqrt(dx*dx + dy*dy)}
+              {@const angle = Math.atan2(dy, dx) * 180 / Math.PI}
+              <!-- Perpendicular normal for offset -->
+              {@const nx = -dy/len}
+              {@const ny = dx/len}
+              <!-- Dimension line offset from the cut -->
+              {@const d1x = p1.bx + nx*off}
+              {@const d1y = p1.by + ny*off}
+              {@const d2x = p2.bx + nx*off}
+              {@const d2y = p2.by + ny*off}
+              {@const mx = (d1x+d2x)/2}
+              {@const my = (d1y+d2y)/2}
+              <!-- Installed-frame distance (not board-frame) -->
+              {@const instLen = (() => {
+                // Compute distance in installed coords from the cut mark indices
+                // Seat: seatEndX to 0, Risers: rise, Treads: run, Plumb: plumb length
+                if (i === 1) return L.seatEndXCalc;  // seat
+                if (i === cutVertices.length - 1) return L.topY - (L.botAtX0 + L.topX * L.slopeRatio);  // plumb
+                // Odd indices (after seat): inside corners → treads
+                // Even indices: tread noses → risers
+                if (i % 2 === 0) return L.run;  // tread (full run)
+                else return L.notchY(Math.floor((i-2)/2)) - (Math.floor((i-2)/2) > 0 ? L.notchY(Math.floor((i-2)/2)-1) : 0);  // riser
+              })()}
+              {@const label = (() => {
+                if (i === 1) return fmtFrac(instLen) + ' seat';
+                if (i === cutVertices.length - 1) return fmtFrac(instLen) + ' plumb';
+                if (i % 2 === 0) return fmtFrac(instLen) + ' T' + (i/2);
+                return fmtFrac(instLen) + ' R' + (Math.ceil(i/2));
+              })()}
+              <!-- Extension lines -->
+              <line x1={p1.bx} y1={p1.by} x2={d1x} y2={d1y} stroke="#666" stroke-width={0.08} opacity={0.4} />
+              <line x1={p2.bx} y1={p2.by} x2={d2x} y2={d2y} stroke="#666" stroke-width={0.08} opacity={0.4} />
+              <!-- Dimension line -->
+              <line x1={d1x} y1={d1y} x2={d2x} y2={d2y} stroke="#333" stroke-width={0.1} />
+              <!-- Tick marks -->
+              {@const tk = 0.4}
+              <line x1={d1x-nx*tk/2} y1={d1y-ny*tk/2} x2={d1x+nx*tk/2} y2={d1y+ny*tk/2} stroke="#333" stroke-width={0.1} />
+              <line x1={d2x-nx*tk/2} y1={d2y-ny*tk/2} x2={d2x+nx*tk/2} y2={d2y+ny*tk/2} stroke="#333" stroke-width={0.1} />
+              <!-- Label rotated parallel to line -->
+              {@const textAngle = angle > 90 || angle < -90 ? angle + 180 : angle}
+              <text x={mx} y={my - 0.3} text-anchor="middle" font-size={0.55} fill="#333"
+                transform="rotate({textAngle}, {mx}, {my - 0.3})">
+                {label}
+              </text>
             {/if}
           {/each}
-
-          <!-- Measurements on top edge -->
-          {#each topEdgePts as bx, i}
-            {#if i > 0}
-              {@const dist = bx - topEdgePts[i-1]}
-              {#if dist > 0.5}
-                <line x1={topEdgePts[i-1]} y1={-0.5} x2={bx} y2={-0.5}
-                  stroke="#2980b9" stroke-width={0.15/scale} />
-                <line x1={topEdgePts[i-1]} y1={-0.3} x2={topEdgePts[i-1]} y2={-0.7}
-                  stroke="#2980b9" stroke-width={0.15/scale} />
-                <line x1={bx} y1={-0.3} x2={bx} y2={-0.7}
-                  stroke="#2980b9" stroke-width={0.15/scale} />
-                <text x={(bx + topEdgePts[i-1]) / 2} y={-1.2}
-                  text-anchor="middle" font-size={fs} fill="#333">
-                  {fmtFrac(dist)}
-                </text>
-              {/if}
-            {/if}
-          {/each}
-
-          <!-- Measurements on left edge -->
-          {#each leftEdgePts as by, i}
-            {#if i > 0}
-              {@const dist = by - leftEdgePts[i-1]}
-              {#if dist > 0.3}
-                <line x1={L.boardLeft-0.5} y1={leftEdgePts[i-1]} x2={L.boardLeft-0.5} y2={by}
-                  stroke="#27ae60" stroke-width={0.15/scale} />
-                <line x1={L.boardLeft-0.3} y1={leftEdgePts[i-1]} x2={L.boardLeft-0.7} y2={leftEdgePts[i-1]}
-                  stroke="#27ae60" stroke-width={0.15/scale} />
-                <line x1={L.boardLeft-0.3} y1={by} x2={L.boardLeft-0.7} y2={by}
-                  stroke="#27ae60" stroke-width={0.15/scale} />
-                <text x={L.boardLeft - 1.5} y={(by + leftEdgePts[i-1]) / 2 + 0.3}
-                  text-anchor="middle" font-size={fs} fill="#333"
-                  transform="rotate(-90, {L.boardLeft - 1.5}, {(by + leftEdgePts[i-1]) / 2 + 0.3})">
-                  {fmtFrac(dist)}
-                </text>
-              {/if}
-            {/if}
-          {/each}
-
-          <!-- Measurements on right edge -->
-          {#each rightEdgeCrossings as by, i}
-            {#if i > 0}
-              {@const dist = by - rightEdgeCrossings[i-1]}
-              {#if dist > 0.3}
-                <line x1={L.boardRight+0.5} y1={rightEdgeCrossings[i-1]} x2={L.boardRight+0.5} y2={by}
-                  stroke="#8e44ad" stroke-width={0.15/scale} />
-                <line x1={L.boardRight+0.3} y1={rightEdgeCrossings[i-1]} x2={L.boardRight+0.7} y2={rightEdgeCrossings[i-1]}
-                  stroke="#8e44ad" stroke-width={0.15/scale} />
-                <line x1={L.boardRight+0.3} y1={by} x2={L.boardRight+0.7} y2={by}
-                  stroke="#8e44ad" stroke-width={0.15/scale} />
-                <text x={L.boardRight + 1.5} y={(by + rightEdgeCrossings[i-1]) / 2 + 0.3}
-                  text-anchor="middle" font-size={fs} fill="#333"
-                  transform="rotate(90, {L.boardRight + 1.5}, {(by + rightEdgeCrossings[i-1]) / 2 + 0.3})">
-                  {fmtFrac(dist)}
-                </text>
-              {/if}
-            {/if}
-          {/each}
-
-          <!-- Cut labels on the stringer outline -->
-          {#each L.notches as notch, i}
-            {@const riserX = notch.riserX}
-            {@const treadY = notch.treadY}
-            {@const prevY = i > 0 ? L.notchY(i - 1) : 0}
-            {@const td = notch.td}
-            {@const tS = L.toBoard(riserX, treadY)}
-            {@const tE = L.toBoard(riserX + td, treadY)}
-            {@const rB = L.toBoard(riserX, prevY)}
-            <text x={(tS.bx+tE.bx)/2} y={(tS.by+tE.by)/2 - 0.5}
-              text-anchor="middle" font-size={fs} fill="#2980b9">
-              {fmtFrac(td)} T{i+1}
-            </text>
-            <text x={(rB.bx+tS.bx)/2 - 0.8} y={(rB.by+tS.by)/2}
-              text-anchor="end" font-size={fs} fill="#e67e22">
-              {fmtFrac(treadY - prevY)} R{i+1}
-            </text>
-          {/each}
-
-          <!-- Seat and plumb labels -->
-          <text x={(L.seatEnd.bx+L.seatOrigin.bx)/2} y={(L.seatEnd.by+L.seatOrigin.by)/2 - 0.5}
-            text-anchor="middle" font-size={fs} fill="#27ae60">
-            {fmtFrac(L.seatEndXCalc)} seat
-          </text>
-          {#if true}
-            {@const pTop = L.toBoard(L.topX, L.topY)}
-            {@const pBot = L.toBoard(L.topX, L.botAtX0 + L.topX * L.slopeRatio)}
-            {@const pLen = L.topY - (L.botAtX0 + L.topX * L.slopeRatio)}
-            <text x={(pTop.bx+pBot.bx)/2 + 1.5} y={(pTop.by+pBot.by)/2}
-              text-anchor="start" font-size={fs} fill="#27ae60">
-              {fmtFrac(pLen)} plumb
-            </text>
-          {/if}
 
         <!-- Bottom edge (uncut) label -->
         <text x={(L.boardLeft + L.boardRight) / 2} y={L.sw + 3}
