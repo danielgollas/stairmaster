@@ -5,6 +5,7 @@
   import { generateScad } from './lib/scad-generator.js';
   import InputPanel from './components/InputPanel.svelte';
   import Viewport from './components/Viewport.svelte';
+  import CutGuide from './components/CutGuide.svelte';
   import OutputPanel from './components/OutputPanel.svelte';
 
   // Reactive input state
@@ -143,6 +144,7 @@
         <button class:active={viewMode === '3d'} onclick={() => viewMode = '3d'}>3D</button>
         <button class:active={viewMode === 'side'} onclick={() => viewMode = 'side'}>Side</button>
         <button class:active={viewMode === 'front'} onclick={() => viewMode = 'front'}>Front</button>
+        <button class:active={viewMode === 'cut'} onclick={() => viewMode = 'cut'}>Cut Guide</button>
       </div>
       <div class="downloads">
         <button onclick={downloadScad}>⬇ .scad</button>
@@ -161,7 +163,11 @@
         </label>
       {/each}
     </div>
-    <Viewport {sceneParams} {visibility} {viewMode} />
+    {#if viewMode === 'cut'}
+      <CutGuide {sceneParams} />
+    {:else}
+      <Viewport {sceneParams} {visibility} {viewMode} />
+    {/if}
   </div>
 
   <div class="panel right">
