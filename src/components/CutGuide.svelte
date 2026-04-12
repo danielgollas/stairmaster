@@ -318,12 +318,17 @@
             for (const by of rightEdgeCrossings)
               if (by > 0.01 && by < L.sw - 0.01)
                 points.push({ bx: L.boardRight, by, edge: 'right' });
-            // Internal vertices: all stringer pts inside the board
+            // Internal vertices: stringer pts inside the board, deduped by distance
+            const internals = [];
             for (const pt of L.pts) {
               if (pt.by > 0.3 && pt.by < L.sw - 0.3 &&
-                  pt.bx > L.boardLeft + 0.3 && pt.bx < L.boardRight - 0.3)
-                points.push({ bx: pt.bx, by: pt.by, edge: 'internal' });
+                  pt.bx > L.boardLeft + 0.3 && pt.bx < L.boardRight - 0.3) {
+                // Skip if too close to an existing internal point
+                const dup = internals.some(p => Math.abs(p.bx - pt.bx) < 1 && Math.abs(p.by - pt.by) < 1);
+                if (!dup) internals.push({ bx: pt.bx, by: pt.by, edge: 'internal' });
+              }
             }
+            points.push(...internals);
             // Assign letters
             let li = 0;
             for (const p of points) {
