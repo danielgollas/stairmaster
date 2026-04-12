@@ -433,6 +433,46 @@
             </text>
           {/each}
 
+          <!-- Perpendicular lines from each cut vertex to nearest edge (tape + square method) -->
+          {#each cutVertices as pt, i}
+            {#if true}
+              {@const dTop = pt.by}
+              {@const dBot = L.sw - pt.by}
+              {@const dLeft = pt.bx - L.boardLeft}
+              {@const dRight = L.boardRight - pt.bx}
+              {@const minD = Math.min(dTop, dBot, dLeft, dRight)}
+              {@const perpDist = minD}
+              <!-- Draw perpendicular line to nearest edge -->
+              {#if minD === dTop && dTop > 0.3}
+                <line x1={pt.bx} y1={pt.by} x2={pt.bx} y2={0}
+                  stroke="#2980b9" stroke-width={0.06} stroke-dasharray="0.3,0.2" opacity={0.6} />
+                <text x={pt.bx + 0.3} y={pt.by / 2} text-anchor="start" font-size={0.4} fill="#2980b9"
+                  transform="rotate(-90, {pt.bx + 0.3}, {pt.by / 2})">
+                  {fmtFrac(perpDist)}
+                </text>
+              {:else if minD === dBot && dBot > 0.3}
+                <line x1={pt.bx} y1={pt.by} x2={pt.bx} y2={L.sw}
+                  stroke="#c0392b" stroke-width={0.06} stroke-dasharray="0.3,0.2" opacity={0.6} />
+                <text x={pt.bx + 0.3} y={(pt.by + L.sw) / 2} text-anchor="start" font-size={0.4} fill="#c0392b"
+                  transform="rotate(-90, {pt.bx + 0.3}, {(pt.by + L.sw) / 2})">
+                  {fmtFrac(perpDist)}
+                </text>
+              {:else if minD === dLeft && dLeft > 0.3}
+                <line x1={pt.bx} y1={pt.by} x2={L.boardLeft} y2={pt.by}
+                  stroke="#27ae60" stroke-width={0.06} stroke-dasharray="0.3,0.2" opacity={0.6} />
+                <text x={(pt.bx + L.boardLeft) / 2} y={pt.by - 0.3} text-anchor="middle" font-size={0.4} fill="#27ae60">
+                  {fmtFrac(perpDist)}
+                </text>
+              {:else if minD === dRight && dRight > 0.3}
+                <line x1={pt.bx} y1={pt.by} x2={L.boardRight} y2={pt.by}
+                  stroke="#8e44ad" stroke-width={0.06} stroke-dasharray="0.3,0.2" opacity={0.6} />
+                <text x={(pt.bx + L.boardRight) / 2} y={pt.by - 0.3} text-anchor="middle" font-size={0.4} fill="#8e44ad">
+                  {fmtFrac(perpDist)}
+                </text>
+              {/if}
+            {/if}
+          {/each}
+
           <!-- Dimension lines between consecutive cut vertices, parallel to each segment -->
           {@const off = 1.2}
           {#each cutVertices as pt, i}
