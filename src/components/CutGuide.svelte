@@ -265,20 +265,13 @@
             v.push({ ...tb(L.seatEndXCalc, 0), label: 'seat heel' });
             v.push({ ...tb(0, 0), label: 'seat/R1' });
 
-            // Each notch has 3 corners:
-            // 1. Riser bottom: where previous tread meets this riser
-            // 2. Riser top / inside corner: where riser meets tread (the sawtooth tip)
-            // 3. Tread end: where tread cut ends
+            // Each notch: 2 key cut corners
+            // 1. Inside corner: where riser meets tread (the sawtooth tip)
+            // 2. Tread end: where the tread cut ends
             for (let i = 0; i < L.n; i++) {
               const riserX = i * L.run;
               const treadY = L.notchY(i);
-              const prevY = i > 0 ? L.notchY(i - 1) : 0;
               const td = L.notches[i].td;
-              // Riser bottom (= previous tread end position, different x though)
-              // Only add if not same as seat origin (i=0 riser bottom is seat origin)
-              if (i > 0) {
-                v.push({ ...tb(riserX, prevY), label: `R${i+1} bot` });
-              }
               v.push({ ...tb(riserX, treadY), label: `R${i+1}/T${i+1}` });
               v.push({ ...tb(riserX + td, treadY), label: `T${i+1} end` });
             }
