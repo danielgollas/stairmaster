@@ -140,6 +140,7 @@
       minBx, maxBx, minBy, maxBy,
       angle, rise, run, drop, rb, n, topX, topY, botAtX0, slopeRatio,
       notchY, toBoard, notches,
+      seatEndXCalc: seatEndX,
     };
   });
 
@@ -234,41 +235,75 @@
           {L.sw}" (2x12)
         </text>
 
-        <!-- Label each notch cut -->
+        <!-- Detailed measurements for each cut -->
         {#each L.notches as notch, i}
-          {@const rTop = L.toBoard(notch.riserX, notch.treadY)}
-          {@const tEnd = L.toBoard(notch.riserX + notch.td, notch.treadY)}
-          <text
-            x={(rTop.bx + tEnd.bx) / 2}
-            y={rTop.by - 1}
-            text-anchor="middle"
-            font-size={1.5}
-            fill="#c0392b"
-          >
-            T{i + 1}
+          {@const riserX = notch.riserX}
+          {@const treadY = notch.treadY}
+          {@const prevY = i > 0 ? L.notchY(i - 1) : 0}
+          {@const td = notch.td}
+          {@const rb = L.rb}
+
+          <!-- Tread cut dimension (horizontal cut on stringer) -->
+          {@const tStart = L.toBoard(riserX + rb, treadY)}
+          {@const tEnd = L.toBoard(riserX + td, treadY)}
+          {@const tLen = Math.sqrt((tEnd.bx-tStart.bx)**2 + (tEnd.by-tStart.by)**2)}
+          <line x1={tStart.bx} y1={tStart.by} x2={tEnd.bx} y2={tEnd.by}
+            stroke="#2980b9" stroke-width={0.3/scale} />
+          <text x={(tStart.bx+tEnd.bx)/2} y={(tStart.by+tEnd.by)/2 - 0.8}
+            text-anchor="middle" font-size={1.2} fill="#2980b9">
+            {td.toFixed(2)}" T{i+1}
+          </text>
+
+          <!-- Riser cut dimension (vertical cut on stringer) -->
+          {@const rBot = L.toBoard(riserX, prevY)}
+          {@const rTop = L.toBoard(riserX, treadY)}
+          {@const rLen = treadY - prevY}
+          <line x1={rBot.bx} y1={rBot.by} x2={rTop.bx} y2={rTop.by}
+            stroke="#e67e22" stroke-width={0.3/scale} />
+          <text x={(rBot.bx+rTop.bx)/2 - 1.5} y={(rBot.by+rTop.by)/2}
+            text-anchor="middle" font-size={1.2} fill="#e67e22">
+            {rLen.toFixed(2)}" R{i+1}
+          </text>
+
+          <!-- Riser board pocket (rb gap) -->
+          {@const pStart = L.toBoard(riserX, treadY)}
+          {@const pEnd = L.toBoard(riserX + rb, treadY)}
+          <line x1={pStart.bx} y1={pStart.by} x2={pEnd.bx} y2={pEnd.by}
+            stroke="#8e44ad" stroke-width={0.3/scale} />
+          <text x={(pStart.bx+pEnd.bx)/2} y={(pStart.by+pEnd.by)/2 + 1.5}
+            text-anchor="middle" font-size={1} fill="#8e44ad">
+            {rb}"
           </text>
         {/each}
 
-        <!-- Seat label -->
-        <text
-          x={(L.seatEnd.bx + L.seatOrigin.bx) / 2}
-          y={L.seatEnd.by - 1}
-          text-anchor="middle"
-          font-size={1.5}
-          fill="#2980b9"
-        >
-          seat
-        </text>
+        <!-- Seat bearing dimension -->
+        {#if true}
+          {@const seatLen = L.seatEndXCalc}
+          <line x1={L.seatEnd.bx} y1={L.seatEnd.by} x2={L.seatOrigin.bx} y2={L.seatOrigin.by}
+            stroke="#27ae60" stroke-width={0.4/scale} />
+          <text x={(L.seatEnd.bx+L.seatOrigin.bx)/2} y={(L.seatEnd.by+L.seatOrigin.by)/2 - 1}
+            text-anchor="middle" font-size={1.3} fill="#27ae60">
+            {seatLen.toFixed(1)}" seat
+          </text>
+        {/if}
 
-        <!-- Plumb cut labels -->
-        <text
-          x={L.pts[L.pts.length - 1].bx + 2}
-          y={(L.pts[L.pts.length - 2].by + L.pts[L.pts.length - 1].by) / 2}
-          text-anchor="start"
-          font-size={1.5}
-          fill="#2980b9"
-        >
-          plumb
+        <!-- Top plumb cut dimension -->
+        {#if true}
+          {@const pTop = L.toBoard(L.topX, L.topY)}
+          {@const pBot = L.toBoard(L.topX, L.botAtX0 + L.topX * L.slopeRatio)}
+          {@const pLen = L.topY - (L.botAtX0 + L.topX * L.slopeRatio)}
+          <line x1={pTop.bx} y1={pTop.by} x2={pBot.bx} y2={pBot.by}
+            stroke="#27ae60" stroke-width={0.4/scale} />
+          <text x={(pTop.bx+pBot.bx)/2 + 2} y={(pTop.by+pBot.by)/2}
+            text-anchor="start" font-size={1.3} fill="#27ae60">
+            {pLen.toFixed(1)}" plumb
+          </text>
+        {/if}
+
+        <!-- Bottom edge (uncut) label -->
+        <text x={(L.boardLeft + L.boardRight) / 2} y={L.sw + 6}
+          text-anchor="middle" font-size={1.5} fill="#7f8c8d">
+          bottom edge (uncut)
         </text>
       </g>
     </svg>
