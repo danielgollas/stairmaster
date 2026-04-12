@@ -319,30 +319,16 @@
             {fmtFrac(treadY - prevY)} R{i+1}
           </text>
 
-          <!-- Riser board pocket with ticks -->
-          {@const pS = L.toBoard(riserX, treadY)}
-          {@const pE = L.toBoard(riserX + rb, treadY)}
-          <line x1={pS.bx} y1={pS.by} x2={pE.bx} y2={pE.by}
-            stroke="#8e44ad" stroke-width={0.3/scale} />
-          <!-- Small ticks at pocket ends -->
-          <line x1={pS.bx+tNx*tk/3} y1={pS.by+tNy*tk/3} x2={pS.bx-tNx*tk/3} y2={pS.by-tNy*tk/3}
-            stroke="#8e44ad" stroke-width={0.2/scale} />
-          <line x1={pE.bx+tNx*tk/3} y1={pE.by+tNy*tk/3} x2={pE.bx-tNx*tk/3} y2={pE.by-tNy*tk/3}
-            stroke="#8e44ad" stroke-width={0.2/scale} />
-          <text x={(pS.bx+pE.bx)/2+tNx*1} y={(pS.by+pE.by)/2+tNy*1}
-            text-anchor="middle" font-size={0.9} fill="#8e44ad">
-            {fmtFrac(rb)}
-          </text>
-
-          <!-- Notch marks where cuts meet the board edge -->
-          <!-- Riser cut extended to board top edge -->
-          {@const rTopEdge = L.toBoard(riserX, treadY + 2)}
-          <line x1={rT.bx} y1={rT.by} x2={rTopEdge.bx} y2={rTopEdge.by}
-            stroke="#c0392b" stroke-width={0.15/scale} stroke-dasharray="{0.5/scale},{0.5/scale}" opacity={0.4} />
-          <!-- Tread cut extended to board top edge -->
-          {@const tTopEdge = L.toBoard(riserX + td, treadY + 2)}
-          <line x1={tE.bx} y1={tE.by} x2={tTopEdge.bx} y2={tTopEdge.by}
-            stroke="#c0392b" stroke-width={0.15/scale} stroke-dasharray="{0.5/scale},{0.5/scale}" opacity={0.4} />
+          <!-- Small notch marks at cut intersections on the board edge -->
+          <!-- Tick at riser top (where riser meets tread) -->
+          {@const rTick = L.toBoard(riserX, treadY)}
+          <circle cx={rTick.bx} cy={rTick.by} r={0.4} fill="#c0392b" />
+          <!-- Tick at tread end -->
+          {@const tTick = L.toBoard(riserX + td, treadY)}
+          <circle cx={tTick.bx} cy={tTick.by} r={0.4} fill="#c0392b" />
+          <!-- Tick at riser bottom -->
+          {@const rBTick = L.toBoard(riserX, prevY)}
+          <circle cx={rBTick.bx} cy={rBTick.by} r={0.4} fill="#c0392b" />
         {/each}
 
         <!-- Seat bearing dimension with ticks -->
