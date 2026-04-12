@@ -324,7 +324,7 @@
               if (pt.by > 0.3 && pt.by < L.sw - 0.3 &&
                   pt.bx > L.boardLeft + 0.3 && pt.bx < L.boardRight - 0.3) {
                 // Skip if too close to an existing internal point
-                const dup = internals.some(p => Math.abs(p.bx - pt.bx) < 1 && Math.abs(p.by - pt.by) < 1);
+                const dup = internals.some(p => Math.sqrt((p.bx-pt.bx)**2 + (p.by-pt.by)**2) < 2);
                 if (!dup) internals.push({ bx: pt.bx, by: pt.by, edge: 'internal' });
               }
             }
