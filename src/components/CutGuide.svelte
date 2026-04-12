@@ -256,63 +256,54 @@
           {@const fs = 0.8}
           {@const dotR = 0.3}
 
-          <!-- Compute board-edge intersection points explicitly from stringer geometry -->
-          <!-- Bottom edge (y=sw): where each riser cut and the plumb cuts cross -->
-          {@const botEdgePts = (() => {
-            const pts = [L.boardLeft];
-            // Each notch: the riser cut line (vertical in installed frame) crosses bottom edge
-            for (let i = 0; i < L.n; i++) {
-              const riserX = i * L.run;
-              const prevY = i > 0 ? L.notchY(i - 1) : 0;
-              // Riser bottom point in board coords
-              const rB = L.toBoard(riserX, prevY);
-              if (rB.by >= L.sw - 0.5) pts.push(rB.bx);  // near bottom edge
-              // Tread end point
-              const td = L.notches[i].td;
-              const tE = L.toBoard(riserX + td, L.notchY(i));
-              if (tE.by >= L.sw - 0.5) pts.push(tE.bx);
+          <!-- Find all intersections of stringer outline with board edges -->
+          {@const edgeCrossings = (() => {
+            const top = [], bot = [], left = [], right = [];
+            const pts = L.pts;
+            const n = pts.length;
+            for (let k = 0; k < n; k++) {
+              const p1 = pts[k];
+              const p2 = pts[(k + 1) % n];
+              const dx = p2.bx - p1.bx, dy = p2.by - p1.by;
+              // Top edge y=0
+              if (Math.abs(dy) > 0.001 && ((p1.by <= 0 && p2.by >= 0) || (p1.by >= 0 && p2.by <= 0))) {
+                const t = -p1.by / dy;
+                if (t > 0.001 && t < 0.999) top.push(p1.bx + t * dx);
+              }
+              // Bottom edge y=sw
+              if (Math.abs(dy) > 0.001 && ((p1.by <= L.sw && p2.by >= L.sw) || (p1.by >= L.sw && p2.by <= L.sw))) {
+                const t = (L.sw - p1.by) / dy;
+                if (t > 0.001 && t < 0.999) bot.push(p1.bx + t * dx);
+              }
+              // Left edge x=boardLeft
+              if (Math.abs(dx) > 0.001 && ((p1.bx <= L.boardLeft && p2.bx >= L.boardLeft) || (p1.bx >= L.boardLeft && p2.bx <= L.boardLeft))) {
+                const t = (L.boardLeft - p1.bx) / dx;
+                if (t > 0.001 && t < 0.999) {
+                  const y = p1.by + t * dy;
+                  if (y > 0.01 && y < L.sw - 0.01) left.push(y);
+                }
+              }
+              // Right edge x=boardRight
+              if (Math.abs(dx) > 0.001 && ((p1.bx <= L.boardRight && p2.bx >= L.boardRight) || (p1.bx >= L.boardRight && p2.bx <= L.boardRight))) {
+                const t = (L.boardRight - p1.bx) / dx;
+                if (t > 0.001 && t < 0.999) {
+                  const y = p1.by + t * dy;
+                  if (y > 0.01 && y < L.sw - 0.01) right.push(y);
+                }
+              }
             }
-            // Right plumb bottom
-            const pBot = L.toBoard(L.topX, L.botAtX0 + L.topX * L.slopeRatio);
-            pts.push(pBot.bx);
-            pts.push(L.boardRight);
-            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a, b) => a - b);
+            const dedup = a => [...new Set(a.map(v => Math.round(v*100)/100))].sort((a,b)=>a-b);
+            return {
+              top: [L.boardLeft, ...dedup(top), L.boardRight],
+              bot: [L.boardLeft, ...dedup(bot), L.boardRight],
+              left: [0, ...dedup(left), L.sw],
+              right: [0, ...dedup(right), L.sw],
+            };
           })()}
-
-          <!-- Top edge (y=0): where seat and plumb cuts cross -->
-          {@const topEdgePts = (() => {
-            const pts = [L.boardLeft];
-            // Seat origin (where seat meets first riser)
-            const sO = L.toBoard(0, 0);
-            if (Math.abs(sO.by) < 0.5) pts.push(sO.bx);
-            // Each notch riser top (where riser meets tread) - check if near top edge
-            for (let i = 0; i < L.n; i++) {
-              const rT = L.toBoard(i * L.run, L.notchY(i));
-              if (rT.by <= 0.5) pts.push(rT.bx);
-              // Tread right end
-              const td = L.notches[i].td;
-              const tE = L.toBoard(i * L.run + td, L.notchY(i));
-              if (tE.by <= 0.5) pts.push(tE.bx);
-            }
-            // Right plumb top
-            const pTop = L.toBoard(L.topX, L.topY);
-            pts.push(pTop.bx);
-            pts.push(L.boardRight);
-            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a, b) => a - b);
-          })()}
-
-          <!-- Left edge: seat end and seat origin heights -->
-          {@const leftEdgePts = (() => {
-            const pts = [0];  // top-left (y=0)
-            // The stringer seat end is near the left edge
-            const sE = L.seatEnd;
-            if (Math.abs(sE.bx - L.boardLeft) < 1) pts.push(sE.by);
-            // The stringer bottom-left plumb
-            const bL = L.toBoard(0, L.botAtX0);
-            if (Math.abs(bL.bx - L.boardLeft) < 2) pts.push(bL.by);
-            pts.push(L.sw);  // bottom-left
-            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a, b) => a - b);
-          })()}
+          {@const botEdgePts = edgeCrossings.bot}
+          {@const topEdgePts = edgeCrossings.top}
+          {@const leftEdgePts = edgeCrossings.left}
+          {@const rightEdgeCrossings = edgeCrossings.right}
 
           <!-- Letter counter for labeling dots -->
           {@const letterIdx = { val: 0 }}
@@ -321,37 +312,27 @@
             return i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(65 + Math.floor(i/26) - 1) + String.fromCharCode(65 + i%26);
           }}
 
-          <!-- Collect ALL labeled points: edges + internal vertices -->
+          <!-- Collect ALL labeled points on edges only (no internal) -->
           {@const allPoints = (() => {
             const points = [];
-            // Bottom edge points
-            for (const bx of botEdgePts) {
-              points.push({ bx, by: L.sw, edge: 'bottom', letter: '' });
-            }
-            // Top edge points
-            for (const bx of topEdgePts) {
-              points.push({ bx, by: 0, edge: 'top', letter: '' });
-            }
-            // Left edge points (not corners, they're already in top/bottom)
-            for (const by of leftEdgePts) {
-              if (by > 0.1 && by < L.sw - 0.1)
-                points.push({ bx: L.boardLeft, by, edge: 'left', letter: '' });
-            }
-            // Right edge points
-            // Find stringer crossings on right edge
-            for (const pt of L.pts) {
-              if (Math.abs(pt.bx - L.boardRight) < 1 && pt.by > 0.5 && pt.by < L.sw - 0.5)
-                points.push({ bx: L.boardRight, by: pt.by, edge: 'right', letter: '' });
-            }
-            // Internal cut vertices
-            for (const pt of L.pts) {
-              if (pt.by > 0.5 && pt.by < L.sw - 0.5 && pt.bx > L.boardLeft + 1 && pt.bx < L.boardRight - 1)
-                points.push({ bx: pt.bx, by: pt.by, edge: 'internal', letter: '' });
-            }
+            // Bottom edge
+            for (const bx of botEdgePts)
+              points.push({ bx, by: L.sw, edge: 'bottom' });
+            // Top edge
+            for (const bx of topEdgePts)
+              points.push({ bx, by: 0, edge: 'top' });
+            // Left edge (not corners)
+            for (const by of leftEdgePts)
+              if (by > 0.01 && by < L.sw - 0.01)
+                points.push({ bx: L.boardLeft, by, edge: 'left' });
+            // Right edge (not corners)
+            for (const by of rightEdgeCrossings)
+              if (by > 0.01 && by < L.sw - 0.01)
+                points.push({ bx: L.boardRight, by, edge: 'right' });
             // Assign letters
             let li = 0;
             for (const p of points) {
-              p.letter = li < 26 ? String.fromCharCode(65 + li) : String.fromCharCode(65 + Math.floor(li/26) - 1) + String.fromCharCode(65 + li%26);
+              p.letter = li < 26 ? String.fromCharCode(65 + li) : 'A' + String.fromCharCode(65 + li - 26);
               li++;
             }
             return points;
@@ -430,25 +411,17 @@
           {/each}
 
           <!-- Measurements on right edge -->
-          {@const rightEdgePts = (() => {
-            const pts = [0];
-            for (const p of allPoints) {
-              if (p.edge === 'right') pts.push(p.by);
-            }
-            pts.push(L.sw);
-            return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
-          })()}
-          {#each rightEdgePts as by, i}
+          {#each rightEdgeCrossings as by, i}
             {#if i > 0}
-              {@const dist = by - rightEdgePts[i-1]}
+              {@const dist = by - rightEdgeCrossings[i-1]}
               {#if dist > 0.3}
-                <line x1={L.boardRight+0.5} y1={rightEdgePts[i-1]} x2={L.boardRight+0.5} y2={by}
+                <line x1={L.boardRight+0.5} y1={rightEdgeCrossings[i-1]} x2={L.boardRight+0.5} y2={by}
                   stroke="#8e44ad" stroke-width={0.15/scale} />
-                <line x1={L.boardRight+0.3} y1={rightEdgePts[i-1]} x2={L.boardRight+0.7} y2={rightEdgePts[i-1]}
+                <line x1={L.boardRight+0.3} y1={rightEdgeCrossings[i-1]} x2={L.boardRight+0.7} y2={rightEdgeCrossings[i-1]}
                   stroke="#8e44ad" stroke-width={0.15/scale} />
                 <line x1={L.boardRight+0.3} y1={by} x2={L.boardRight+0.7} y2={by}
                   stroke="#8e44ad" stroke-width={0.15/scale} />
-                <text x={L.boardRight + 1.5} y={(by + rightEdgePts[i-1]) / 2 + 0.3}
+                <text x={L.boardRight + 1.5} y={(by + rightEdgeCrossings[i-1]) / 2 + 0.3}
                   text-anchor="middle" font-size={fs} fill="#333"
                   transform="rotate(90, {L.boardRight + 1.5}, {(by + rightEdgePts[i-1]) / 2 + 0.3})">
                   {fmtFrac(dist)}
