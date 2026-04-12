@@ -261,24 +261,20 @@
             const v = [];
             const tb = L.toBoard;
 
-            // Seat: heel and origin
-            v.push({ ...tb(L.seatEndXCalc, 0), label: 'seat heel' });
-            v.push({ ...tb(0, 0), label: 'seat/R1' });
-
-            // Each notch: 2 key cut corners
-            // 1. Inside corner: where riser meets tread (the sawtooth tip)
-            // 2. Tread end: where the tread cut ends
-            for (let i = 0; i < L.n; i++) {
-              const riserX = i * L.run;
-              const treadY = L.notchY(i);
-              const td = L.notches[i].td;
-              v.push({ ...tb(riserX, treadY), label: `R${i+1}/T${i+1}` });
-              v.push({ ...tb(riserX + td, treadY), label: `T${i+1} end` });
+            // Use L.pts directly — these ARE the exact cut vertices
+            // Only skip the fill-gap points at ((i+1)*run, treadY)
+            const fillGaps = new Set();
+            for (let i = 0; i < L.n - 1; i++) {
+              // Fill-gap in installed coords: ((i+1)*run, notchY(i))
+              const fg = tb((i + 1) * L.run, L.notchY(i));
+              fillGaps.add(`${fg.bx.toFixed(4)},${fg.by.toFixed(4)}`);
             }
-
-            // Top plumb: top and bottom
-            v.push({ ...tb(L.topX, L.topY), label: 'plumb top' });
-            v.push({ ...tb(L.topX, L.botAtX0 + L.topX * L.slopeRatio), label: 'plumb bot' });
+            for (const pt of L.pts) {
+              const key = `${pt.bx.toFixed(4)},${pt.by.toFixed(4)}`;
+              if (!fillGaps.has(key)) {
+                v.push({ bx: pt.bx, by: pt.by });
+              }
+            }
 
             return v;
           })()}
