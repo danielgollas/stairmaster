@@ -257,40 +257,38 @@
           {@const dotR = 0.3}
 
           <!-- Project stringer vertices onto each board edge -->
-          <!-- Bottom edge (y=sw): project all pts with by near sw onto bx axis -->
+          <!-- Edge points: only vertices that are ON or very close to an edge (within 1") -->
+          {@const edgeTol = 1.0}
           {@const botEdgePts = (() => {
             const pts = [L.boardLeft];
             for (const p of L.pts) {
-              if (p.by > L.sw * 0.7) pts.push(p.bx);  // near bottom
+              if (Math.abs(p.by - L.sw) < edgeTol) pts.push(p.bx);
             }
             pts.push(L.boardRight);
             return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
           })()}
-          <!-- Top edge (y=0): project pts near top -->
           {@const topEdgePts = (() => {
             const pts = [L.boardLeft];
             for (const p of L.pts) {
-              if (p.by < L.sw * 0.3) pts.push(p.bx);  // near top
+              if (Math.abs(p.by) < edgeTol) pts.push(p.bx);
             }
             pts.push(L.boardRight);
             return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
           })()}
-          <!-- Left edge: project pts near left onto by axis -->
           {@const leftEdgePts = (() => {
             const pts = [0];
             for (const p of L.pts) {
-              if (p.bx < L.boardLeft + (L.boardRight - L.boardLeft) * 0.1)
-                pts.push(Math.max(0, Math.min(L.sw, p.by)));
+              if (Math.abs(p.bx - L.boardLeft) < edgeTol && p.by > edgeTol && p.by < L.sw - edgeTol)
+                pts.push(p.by);
             }
             pts.push(L.sw);
             return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
           })()}
-          <!-- Right edge: project pts near right onto by axis -->
           {@const rightEdgeCrossings = (() => {
             const pts = [0];
             for (const p of L.pts) {
-              if (p.bx > L.boardRight - (L.boardRight - L.boardLeft) * 0.1)
-                pts.push(Math.max(0, Math.min(L.sw, p.by)));
+              if (Math.abs(p.bx - L.boardRight) < edgeTol && p.by > edgeTol && p.by < L.sw - edgeTol)
+                pts.push(p.by);
             }
             pts.push(L.sw);
             return [...new Set(pts.map(v => Math.round(v*100)/100))].sort((a,b) => a-b);
@@ -303,7 +301,7 @@
             return i < 26 ? String.fromCharCode(65 + i) : String.fromCharCode(65 + Math.floor(i/26) - 1) + String.fromCharCode(65 + i%26);
           }}
 
-          <!-- Collect ALL labeled points on edges only (no internal) -->
+          <!-- Collect labeled points: edges + internal stringer vertices -->
           {@const allPoints = (() => {
             const points = [];
             // Bottom edge
@@ -320,6 +318,12 @@
             for (const by of rightEdgeCrossings)
               if (by > 0.01 && by < L.sw - 0.01)
                 points.push({ bx: L.boardRight, by, edge: 'right' });
+            // Internal vertices: all stringer pts inside the board
+            for (const pt of L.pts) {
+              if (pt.by > 0.3 && pt.by < L.sw - 0.3 &&
+                  pt.bx > L.boardLeft + 0.3 && pt.bx < L.boardRight - 0.3)
+                points.push({ bx: pt.bx, by: pt.by, edge: 'internal' });
+            }
             // Assign letters
             let li = 0;
             for (const p of points) {
