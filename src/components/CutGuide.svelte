@@ -256,33 +256,41 @@
           {@const fs = 0.8}
           {@const dotR = 0.3}
 
-          <!-- All labeled points: 4 board corners + stringer cut vertices -->
-          <!-- Analytically determined — these are the exact points from the stringer path -->
+          <!-- Build cut vertices analytically — each is an explicit point -->
+          {@const cutVertices = (() => {
+            const v = [];
+            const tb = L.toBoard;
+
+            // Seat: heel and origin
+            v.push({ ...tb(L.seatEndXCalc, 0), label: 'seat heel' });
+            v.push({ ...tb(0, 0), label: 'seat/R1' });
+
+            // Each notch: riser top + tread end (skip fill-gap points)
+            for (let i = 0; i < L.n; i++) {
+              const riserX = i * L.run;
+              const treadY = L.notchY(i);
+              const td = L.notches[i].td;
+              v.push({ ...tb(riserX, treadY), label: `R${i+1} top` });
+              v.push({ ...tb(riserX + td, treadY), label: `T${i+1} end` });
+            }
+
+            // Top plumb: top and bottom
+            v.push({ ...tb(L.topX, L.topY), label: 'plumb top' });
+            v.push({ ...tb(L.topX, L.botAtX0 + L.topX * L.slopeRatio), label: 'plumb bot' });
+
+            return v;
+          })()}
+
+          <!-- All labeled points: 4 corners + cut vertices -->
           {@const allPoints = (() => {
             const points = [];
-            // 4 board corners
-            points.push({ bx: L.boardLeft, by: 0, edge: 'corner', name: 'TL' });
-            points.push({ bx: L.boardRight, by: 0, edge: 'corner', name: 'TR' });
-            points.push({ bx: L.boardRight, by: L.sw, edge: 'corner', name: 'BR' });
-            points.push({ bx: L.boardLeft, by: L.sw, edge: 'corner', name: 'BL' });
-
-            // Stringer cut vertices from L.pts
-            // Skip fill-gap points: these are at ((i+1)*run, treadY) for i < n-1
-            // They're not actual cut vertices, just stringer material ledges
-            const skipKeys = new Set();
-            for (let i = 0; i < L.n - 1; i++) {
-              const fg = L.toBoard((i + 1) * L.run, L.notchY(i));
-              skipKeys.add(Math.round(fg.bx * 10) + ',' + Math.round(fg.by * 10));
+            points.push({ bx: L.boardLeft, by: 0, edge: 'corner' });
+            points.push({ bx: L.boardRight, by: 0, edge: 'corner' });
+            points.push({ bx: L.boardRight, by: L.sw, edge: 'corner' });
+            points.push({ bx: L.boardLeft, by: L.sw, edge: 'corner' });
+            for (const cv of cutVertices) {
+              points.push({ bx: cv.bx, by: cv.by, edge: 'cut', label: cv.label });
             }
-
-            for (const pt of L.pts) {
-              const key = Math.round(pt.bx * 10) + ',' + Math.round(pt.by * 10);
-              if (!skipKeys.has(key)) {
-                points.push({ bx: pt.bx, by: pt.by, edge: 'cut' });
-              }
-            }
-
-            // Assign letters
             let li = 0;
             for (const p of points) {
               p.letter = li < 26 ? String.fromCharCode(65 + li) : 'A' + String.fromCharCode(65 + li - 26);
@@ -291,19 +299,11 @@
             return points;
           })()}
 
-          <!-- Edge measurement arrays: project cut points onto edges -->
-          {@const botEdgePts = (() => {
-            const pts = [L.boardLeft, L.boardRight];
-            for (const p of allPoints) if (p.edge === 'cut') pts.push(p.bx);
-            return [...new Set(pts.map(v => Math.round(v * 100) / 100))].sort((a, b) => a - b);
-          })()}
-          {@const topEdgePts = botEdgePts}
-          {@const leftEdgePts = (() => {
-            const pts = [0, L.sw];
-            for (const p of allPoints) if (p.edge === 'cut') pts.push(Math.max(0, Math.min(L.sw, p.by)));
-            return [...new Set(pts.map(v => Math.round(v * 100) / 100))].sort((a, b) => a - b);
-          })()}
-          {@const rightEdgeCrossings = leftEdgePts}
+          <!-- Edge measurements: only along bottom and left edges (most useful for layout) -->
+          {@const botEdgePts = [L.boardLeft, L.boardRight]}
+          {@const topEdgePts = [L.boardLeft, L.boardRight]}
+          {@const leftEdgePts = [0, L.sw]}
+          {@const rightEdgeCrossings = [0, L.sw]}
 
           <!-- Draw all labeled dots -->
           {#each allPoints as pt}
