@@ -28,6 +28,9 @@ export const DEFAULTS = {
   padSideClearance: 2,
   padBackExtension: 6,
 
+  // Posts & railing
+  postHeight: 40,
+
   // Hardware
   postBase: 'Simpson ABA44Z',
   tensionTie: 'Simpson DTT2Z',

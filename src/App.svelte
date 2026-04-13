@@ -25,17 +25,30 @@
   let padSideClearance = $state(DEFAULTS.padSideClearance);
   let padBackExtension = $state(DEFAULTS.padBackExtension);
 
+  let postHeight = $state(DEFAULTS.postHeight);
+
   let postBase = $state(DEFAULTS.postBase);
   let tensionTie = $state(DEFAULTS.tensionTie);
   let stringerHanger = $state(DEFAULTS.stringerHanger);
 
   let viewMode = $state('side');
+  let edgeMode = $state('visible');
+  let faceMode = $state('color');
+  let aoMode = $state('off');
+
+  // AO tuning parameters (per-algorithm defaults)
+  let aoParams = $state({
+    ssao: { kernelRadius: 0.1, minDistance: 0.0001, maxDistance: 0.01 },
+    sao: { intensity: 0.01, scale: 1, kernelRadius: 100, bias: 0.5, blurRadius: 8 },
+    n8ao: { aoRadius: 0.15, distanceFalloff: 0.05, intensity: 3.0, aoSamples: 16, denoiseSamples: 8, denoiseRadius: 6 },
+    aomap: { aoMapIntensity: 1.5 },
+  });
 
   // Visibility toggles (alphabetical, persisted to localStorage)
   const defaultVisibility = {
     blocking: true, boardOverlay: false, bottomPosts: true, concretePad: true, deckSurface: true, measureGrid: false,
-    dimensions: true, grid: true, groundPlane: true, postBases: true,
-    rimJoist: true, risers: true, sillPlate: true, stringerHangers: true,
+    dimensions: true, grid: true, groundPlane: true, hogPanel: true, postBases: true,
+    railingFrame: true, rimJoist: true, risers: true, sillPlate: true, stringerHangers: true,
     stringers: true, tensionTies: true, topPosts: true, treads: true,
   };
   function loadVisibility() {
@@ -109,7 +122,11 @@
     seatCutLength: stringerProfile.seatCutLength,
     bottomDrop: stringerProfile.bottomDrop,
     topTreadReduction: stringerProfile.topTreadReduction,
-    postHeight: 42,
+    postHeight,
+    edgeMode,
+    faceMode,
+    aoMode,
+    aoParams: aoParams[aoMode] || {},
   });
 
   // .scad source for download (visibility-filtered)
@@ -134,7 +151,9 @@
       bind:deckingThickness bind:riserBoardThickness bind:rimJoistWidth
       bind:sillPlateThickness
       bind:padAboveGrade bind:concreteBelow bind:gravelDepth bind:padSideClearance bind:padBackExtension
-      bind:postBase bind:tensionTie bind:stringerHanger
+      bind:postHeight bind:postBase bind:tensionTie bind:stringerHanger
+      bind:visibility
+      bind:edgeMode bind:faceMode bind:aoMode bind:aoParams
     />
   </div>
 
@@ -150,23 +169,10 @@
         <button onclick={downloadScad}>⬇ .scad</button>
       </div>
     </div>
-    <div class="visibility-bar">
-      <div class="vis-buttons">
-        <button onclick={() => { for (const k in visibility) visibility[k] = true; }}>All</button>
-        <button onclick={() => { for (const k in visibility) visibility[k] = false; }}>None</button>
-        <button onclick={() => { for (const k in visibility) visibility[k] = !visibility[k]; }}>Invert</button>
-      </div>
-      {#each Object.keys(visibility).sort() as key}
-        <label class="vis-toggle">
-          <input type="checkbox" bind:checked={visibility[key]} />
-          <span>{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-        </label>
-      {/each}
-    </div>
     {#if viewMode === 'cut'}
       <CutGuide {sceneParams} />
     {:else}
-      <Viewport {sceneParams} {visibility} {viewMode} />
+      <Viewport {sceneParams} {visibility} {viewMode} {faceMode} {aoMode} aoParams={aoParams[aoMode] || {}} />
     {/if}
   </div>
 
@@ -253,43 +259,6 @@
     color: #0f172a;
     font-weight: 600;
   }
-  .visibility-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 12px;
-    padding: 6px 12px;
-    background: #0f172a;
-    border-bottom: 1px solid #334155;
-    font-size: 0.75em;
-  }
-  .vis-toggle {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: #94a3b8;
-    cursor: pointer;
-    text-transform: capitalize;
-  }
-  .vis-toggle input[type="checkbox"] {
-    accent-color: #60a5fa;
-    margin: 0;
-  }
-  .vis-buttons {
-    display: flex;
-    gap: 4px;
-    margin-right: 8px;
-  }
-  .vis-buttons button {
-    padding: 2px 8px;
-    background: #334155;
-    border: none;
-    border-radius: 3px;
-    color: #94a3b8;
-    cursor: pointer;
-    font-size: 0.85em;
-  }
-  .vis-buttons button:hover { background: #475569; }
-
   @media (max-width: 1024px) {
     .app { flex-direction: column; height: auto; }
     .left, .right { width: 100%; border: none; border-bottom: 1px solid #1e293b; }

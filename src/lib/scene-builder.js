@@ -12,18 +12,125 @@ const COLORS = {
   blocking:  0xbf8c33,
   hardware:  0xcc3333,
   rimJoist:  0xa67320,
+  railing:   0xc49a3c,
+  hogPanel:  0x666666,
   ground:    0x22c422,
   grid:      0x4d4d4d,
 };
 
+let _edgeMode = 'none';
+let _faceMode = 'color';
+let _aoMode = 'off';
+let _aoMapIntensity = 1.5;
+
+
+function makeAoMap(width = 64, height = 64) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  const border = 4;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, 0, width, border);
+  ctx.fillRect(0, height - border, width, border);
+  ctx.fillRect(0, 0, border, height);
+  ctx.fillRect(width - border, 0, border, height);
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  const cr = 8;
+  ctx.fillRect(0, 0, cr, cr);
+  ctx.fillRect(width - cr, 0, cr, cr);
+  ctx.fillRect(0, height - cr, cr, cr);
+  ctx.fillRect(width - cr, height - cr, cr, cr);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+let _aoMapTex = null;
+
 function makeMesh(geo, color, opacity = 1) {
-  const mat = new THREE.MeshPhongMaterial({
-    color,
-    transparent: opacity < 1,
-    opacity,
-    flatShading: true,
-  });
-  return new THREE.Mesh(geo, mat);
+  let mat;
+  // Post-processing AO modes need MeshStandardMaterial for proper depth/normals
+  const needsStandard = ['ssao', 'sao', 'n8ao'].includes(_aoMode);
+
+  switch (_faceMode) {
+    case 'xray':
+      mat = new THREE.MeshPhongMaterial({
+        color,
+        transparent: true,
+        opacity: 0.15,
+        flatShading: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      break;
+    case 'white':
+      mat = needsStandard
+        ? new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0.0, transparent: opacity < 1, opacity })
+        : new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true, transparent: opacity < 1, opacity });
+      break;
+    case 'textured':
+      mat = new THREE.MeshStandardMaterial({
+        color,
+        transparent: opacity < 1,
+        opacity,
+        roughness: 0.7,
+        metalness: 0.0,
+      });
+      break;
+    default: { // 'color'
+      if (needsStandard) {
+        mat = new THREE.MeshStandardMaterial({
+          color,
+          transparent: opacity < 1,
+          opacity,
+          roughness: 0.8,
+          metalness: 0.0,
+        });
+      } else {
+        mat = new THREE.MeshPhongMaterial({
+          color,
+          transparent: opacity < 1,
+          opacity,
+          flatShading: true,
+        });
+      }
+    }
+  }
+
+  // Apply baked AO map if aoMode is 'aomap'
+  if (_aoMode === 'aomap') {
+    if (!_aoMapTex) _aoMapTex = makeAoMap();
+    // Upgrade to StandardMaterial if needed, preserving existing color
+    if (!mat.isMeshStandardMaterial) {
+      const existingColor = mat.color ? mat.color.getHex() : color;
+      mat = new THREE.MeshStandardMaterial({
+        color: existingColor,
+        transparent: opacity < 1,
+        opacity,
+        roughness: 0.8,
+        metalness: 0.0,
+      });
+    }
+    mat.aoMap = _aoMapTex;
+    mat.aoMapIntensity = _aoMapIntensity;
+  }
+
+  const mesh = new THREE.Mesh(geo, mat);
+
+  if (_edgeMode !== 'none') {
+    const edges = new THREE.EdgesGeometry(geo, 15);
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: 0x1a1a1a,
+      depthTest: _edgeMode === 'visible',
+    });
+    const line = new THREE.LineSegments(edges, edgeMat);
+    mesh.add(line);
+  }
+  return mesh;
 }
 
 function box(w, h, d) {
@@ -37,6 +144,11 @@ function box(w, h, d) {
  * Coordinate system: X = horizontal run, Y = width, Z = height (up)
  */
 export function buildScene(p) {
+  _edgeMode = p.edgeMode || 'none';
+  _faceMode = p.faceMode || 'color';
+  _aoMode = p.aoMode || 'off';
+  _aoMapIntensity = (p.aoParams && p.aoParams.aoMapIntensity) ?? 1.5;
+  _aoMapTex = null;
   const meshes = {};
 
   // --- Grid ---
@@ -400,8 +512,10 @@ export function buildScene(p) {
   meshes.deckSurface = deckMesh;
 
   // --- Top posts ---
+  // Top posts rise from the deck surface (top of decking), same height as bottom posts
+  // from their walking surface. This keeps the rails parallel to the stringer slope.
   const topPostsGroup = new THREE.Group();
-  const topPostZ = p.totalHeight - p.deckingThickness;
+  const topPostZ = p.totalHeight;  // deck surface = top of decking
 
   const tlPost = makeMesh(box(ps, ps, postH), COLORS.post);
   tlPost.position.set(rimX + 1.5 + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
@@ -412,6 +526,204 @@ export function buildScene(p) {
   topPostsGroup.add(trPost);
 
   meshes.topPosts = topPostsGroup;
+
+  // --- Railing frame & hog panel ---
+  // 2x4 frame: wide face (3.5") toward inside/outside, narrow face (1.5") up/down
+  // Each rail is a Shape in XZ (side view) extruded along Y for width
+  const railGroup = new THREE.Group();
+  const hogGroup = new THREE.Group();
+  {
+    const rFace = 3.5;  // 2x4 wide face (faces inside/outside = Y depth)
+    const rNarrow = 1.5; // 2x4 narrow face (up/down = Z height)
+    const botInset = 3; // bottom rail 3" above post base
+    const vInset = 3.5; // vertical members 3.5" from posts
+
+    // Post positions
+    const bpZ = p.padAboveGrade;          // bottom post base Z
+    const bpTopZ = bpZ + postH;           // bottom post top Z
+    const tpX = rimX + 1.5 + ps / 2;     // top post center X
+    const tpZ = topPostZ;                 // top post base Z
+    const tpTopZ = tpZ + postH;           // top post top Z
+
+    // Inner faces of posts (the faces that face each other)
+    const bpInnerX = postX + ps / 2;     // bottom post inner face
+    const tpInnerX = tpX - ps / 2;       // top post inner face
+
+    // Rail slope = stringer slope (rise/run per step) so rails are parallel to stringers
+    const railSlope = p.actualRiserHeight / p.treadDepth;
+
+    // Perpendicular board width = rFace (3.5"). On a slope, the vertical span is larger.
+    // Perpendicular dist = verticalSpan / sqrt(1 + slope²), so:
+    const railHyp = Math.sqrt(1 + railSlope * railSlope);
+    const halfPerp = rFace / 2 * railHyp; // half the vertical span for rFace perpendicular
+
+    // Top rail: top edge flush with bottom post top at the inner face
+    // topEdge(x) = bpTopZ + (x - bpInnerX) * railSlope
+    function topRailCenter(x) { return bpTopZ + (x - bpInnerX) * railSlope - halfPerp; }
+
+    // Bottom rail: must clear the tread noses by 3.5"
+    // Tread nose positions: each tread's top surface is at padAbove + (i+1)*rise
+    // The nose X = i * treadDepth - riserBoardThickness (front overhang)
+    // Find the tread nose that's closest to (or above) the rail slope line
+    // and set the bottom rail so its bottom edge is 3.5" above the highest nose
+    // relative to the slope line.
+    const noseClearance = 3.5;
+    let maxNoseZ = bpZ; // fallback
+    for (let i = 0; i < p.numTreads; i++) {
+      const noseX = i * p.treadDepth - p.riserBoardThickness;
+      const noseZ = p.padAboveGrade + (i + 1) * p.actualRiserHeight;
+      // Only consider noses within the rail span
+      if (noseX >= bpInnerX && noseX <= tpInnerX) {
+        // The rail bottom edge at this X would be at some Z.
+        // We need: railBottomEdge(noseX) >= noseZ + noseClearance
+        // railBottomEdge(x) = botRailBaseZ + (x - bpInnerX) * railSlope
+        // We want the highest required botRailBaseZ across all noses:
+        // botRailBaseZ >= noseZ + noseClearance - (noseX - bpInnerX) * railSlope
+        const required = noseZ + noseClearance - (noseX - bpInnerX) * railSlope;
+        maxNoseZ = Math.max(maxNoseZ, required);
+      }
+    }
+    // botRailCenter: bottom edge at bpInnerX = maxNoseZ, center = maxNoseZ + halfPerp
+    function botRailCenter(x) { return maxNoseZ + halfPerp + (x - bpInnerX) * railSlope; }
+
+    // Helper: make an angled rail with vertical plumb cuts at post faces
+    // The rail is angled, posts are vertical. At x=xCut, the rail cross-section
+    // spans from centerZ - rFace/2 to centerZ + rFace/2. The cut is vertical (plumb).
+    // Shape: 6-point polygon (bottom-left, bottom-right, top-right, top-left with
+    // top/bottom edges following the slope, left/right edges vertical at post faces)
+    function makeRail(xLeft, xRight, centerZfn, yCenter) {
+      const zBotL = centerZfn(xLeft) - halfPerp;
+      const zTopL = centerZfn(xLeft) + halfPerp;
+      const zBotR = centerZfn(xRight) - halfPerp;
+      const zTopR = centerZfn(xRight) + halfPerp;
+      const shape = new THREE.Shape();
+      shape.moveTo(xLeft, zBotL);   // bottom-left
+      shape.lineTo(xRight, zBotR);  // bottom-right
+      shape.lineTo(xRight, zTopR);  // top-right (plumb cut)
+      shape.lineTo(xLeft, zTopL);   // top-left (plumb cut)
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: rNarrow, bevelEnabled: false });
+      geo.rotateX(Math.PI / 2);
+      const mesh = makeMesh(geo, COLORS.railing);
+      mesh.position.set(0, yCenter + rNarrow / 2, 0);
+      return mesh;
+    }
+
+    // Rails run from inner face to inner face (flush with posts)
+    const railXLeft = bpInnerX;
+    const railXRight = tpInnerX;
+
+    // Slope shorthand for vertical member / hog panel calculations
+    const slope = railSlope;
+
+    // Center Z functions already defined: topRailCenter(x), botRailCenter(x)
+    // Shorthand for vertical/hog calculations at specific x
+    const topZ0 = topRailCenter(railXLeft);
+    const botZ0 = botRailCenter(railXLeft);
+
+    // Side Y positions (post center Y values)
+    const sideYs = [
+      leftPostY + ps / 2,   // left post center
+      rightPostY + ps / 2,  // right post center
+    ];
+
+    for (const yc of sideYs) {
+      // Top rail — flush with post inner faces
+      railGroup.add(makeRail(railXLeft, railXRight, topRailCenter, yc));
+      // Bottom rail — flush with post inner faces
+      railGroup.add(makeRail(railXLeft, railXRight, botRailCenter, yc));
+
+      // Vertical members: 2x4, rFace (3.5") facing in/out, rNarrow (1.5") in X
+      // Angled cuts at top and bottom matching rail slope
+      // The top cut meets the bottom of the top rail, bottom cut meets top of bottom rail.
+      // At the cut, the rail has slope = railSlope. The vertical member's top/bottom
+      // edges are angled cuts: left edge at x-rNarrow/2, right edge at x+rNarrow/2,
+      // Z varies by rNarrow/2 * slope across the width.
+
+      function makeVertical(vx, yCenter) {
+        const halfW = rFace / 2; // 3.5" wide in X (wide face visible from side)
+        // Z at left and right edges of the vertical member
+        const zBotL = botRailCenter(vx - halfW) + halfPerp;
+        const zBotR = botRailCenter(vx + halfW) + halfPerp;
+        const zTopL = topRailCenter(vx - halfW) - halfPerp;
+        const zTopR = topRailCenter(vx + halfW) - halfPerp;
+
+        // Shape in XZ with rFace (3.5") in X, extruded rNarrow (1.5") in Y
+        const shape = new THREE.Shape();
+        shape.moveTo(vx - halfW, zBotL);
+        shape.lineTo(vx + halfW, zBotR);
+        shape.lineTo(vx + halfW, zTopR);
+        shape.lineTo(vx - halfW, zTopL);
+        const geo = new THREE.ExtrudeGeometry(shape, { depth: rNarrow, bevelEnabled: false });
+        geo.rotateX(Math.PI / 2);
+        const mesh = makeMesh(geo, COLORS.railing);
+        mesh.position.set(0, yCenter + rNarrow / 2, 0);
+        return mesh;
+      }
+
+      // Near bottom post: vInset from inner face
+      const v1x = railXLeft + vInset;
+      const v1zBot = botRailCenter(v1x) + halfPerp;
+      const v1zTop = topRailCenter(v1x) - halfPerp;
+      if (v1zTop > v1zBot) {
+        railGroup.add(makeVertical(v1x, yc));
+      }
+
+      // Near top post: vInset from inner face
+      const v2x = railXRight - vInset;
+      const v2zBot = botRailCenter(v2x) + halfPerp;
+      const v2zTop = topRailCenter(v2x) - halfPerp;
+      if (v2zTop > v2zBot) {
+        railGroup.add(makeVertical(v2x, yc));
+      }
+
+      // --- Hog panel: 1/8" wire, 3.5" grid, horizontal+vertical, clipped to frame ---
+      const gridSp = 3.5;
+      const wireY = yc; // post center
+
+      // Inner frame edges (inside vertical members)
+      const fxMin = v1x + rNarrow / 2;
+      const fxMax = v2x - rNarrow / 2;
+      function botEdge(x) { return botRailCenter(x) + halfPerp; }
+      function topEdge(x) { return topRailCenter(x) - halfPerp; }
+
+      const wireMat = new THREE.LineBasicMaterial({ color: COLORS.hogPanel });
+
+      // Horizontal wires (z = constant, clipped to frame x range at that z)
+      const zLow = botEdge(fxMin);
+      const zHigh = topEdge(fxMax);
+      const zFirst = Math.ceil(zLow / gridSp) * gridSp;
+      for (let z = zFirst; z <= zHigh; z += gridSp) {
+        // Solve for x where z = botEdge(x) and z = topEdge(x)
+        // botEdge(x) = maxNoseZ + 2*halfPerp + (x - bpInnerX) * slope = z
+        const xFromBot = (z - maxNoseZ - 2 * halfPerp) / slope + bpInnerX;
+        // topEdge(x) = bpTopZ + (x - bpInnerX) * slope - 2*halfPerp = z
+        const xFromTop = (z - bpTopZ + 2 * halfPerp) / slope + bpInnerX;
+        const xa = Math.max(fxMin, xFromBot);
+        const xb = Math.min(fxMax, xFromTop);
+        if (xa < xb) {
+          const g = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(xa, wireY, z), new THREE.Vector3(xb, wireY, z)
+          ]);
+          hogGroup.add(new THREE.Line(g, wireMat));
+        }
+      }
+
+      // Vertical wires (x = constant, clipped to frame z range at that x)
+      const xFirst = Math.ceil(fxMin / gridSp) * gridSp;
+      for (let x = xFirst; x <= fxMax; x += gridSp) {
+        const zBot = botEdge(x);
+        const zTop = topEdge(x);
+        if (zBot < zTop) {
+          const g = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(x, wireY, zBot), new THREE.Vector3(x, wireY, zTop)
+          ]);
+          hogGroup.add(new THREE.Line(g, wireMat));
+        }
+      }
+    }
+  }
+  meshes.railingFrame = railGroup;
+  meshes.hogPanel = hogGroup;
 
   // --- Dimensions ---
   meshes.dimensions = buildDimensions(p);
@@ -425,15 +737,15 @@ export function buildScene(p) {
 function makeTextSprite(text, color = '#ffffff', fontSize = 48) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
-  ctx.font = `bold ${fontSize}px monospace`;
+  ctx.font = `300 ${fontSize}px sans-serif`;
   const metrics = ctx.measureText(text);
   const w = metrics.width + 16;
   const h = fontSize + 12;
   canvas.width = w;
   canvas.height = h;
 
-  ctx.font = `bold ${fontSize}px monospace`;
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.font = `300 ${fontSize}px sans-serif`;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = color;
   ctx.textBaseline = 'middle';
@@ -516,16 +828,15 @@ function buildDimensions(p) {
     0x60a5fa
   ));
 
-  // Per-riser height labels (finished surface to surface)
-  // All risers = actualRiserHeight. Walking surfaces at padAbove + i*rise.
-  const riserDimX = -6;
+  // Per-riser height labels positioned next to each riser
   for (let i = 0; i < p.numRisers; i++) {
     const zFrom = p.padAboveGrade + i * p.actualRiserHeight;
     const zTo = p.padAboveGrade + (i + 1) * p.actualRiserHeight;
-    const label = `${(zTo - zFrom).toFixed(2)}" R${i + 1}`;
+    const riserX = i * p.treadDepth - 3; // just in front of each riser
+    const label = `${(zTo - zFrom).toFixed(2)}"`;
     group.add(makeDimLine(
-      [riserDimX, dimY, zFrom],
-      [riserDimX, dimY, zTo],
+      [riserX, dimY, zFrom],
+      [riserX, dimY, zTo],
       label,
       0x34d399
     ));
