@@ -71,6 +71,71 @@
     viewW = 0;  // triggers re-init
   }
 
+  function printCutGuide() {
+    if (!svgEl) return;
+
+    // Clone the SVG content with full extent (no pan/zoom clipping)
+    const svgClone = svgEl.cloneNode(true);
+
+    // Compute full content bounds
+    const margin = 15;
+    let contentMaxY = layout.maxBy;
+    if (railLayout) {
+      contentMaxY = layout.maxBy + 10 + 4 * (3.5 + 14);
+    }
+    const fullW = layout.maxBx - layout.minBx + margin * 2;
+    const fullH = contentMaxY - layout.minBy + margin * 2;
+
+    // A4 in points: 595 x 842 (landscape: 842 x 595)
+    // Use landscape for wider boards
+    const pageW = 842;
+    const pageH = 595;
+    const pagePadding = 40;
+    const usableW = pageW - pagePadding * 2;
+    const usableH = pageH - pagePadding * 2;
+
+    // Scale to fit width
+    const printScale = usableW / fullW;
+    const scaledH = fullH * printScale;
+    const pagesNeeded = Math.ceil(scaledH / usableH);
+
+    // Build print HTML
+    let html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Stairmaster Cut Guide</title>
+<style>
+  @page { size: A4 landscape; margin: 15mm; }
+  body { margin: 0; font-family: sans-serif; }
+  .page { page-break-after: always; position: relative; width: ${usableW}px; height: ${usableH}px; overflow: hidden; }
+  .page:last-child { page-break-after: avoid; }
+  .page-header { font-size: 10px; color: #666; margin-bottom: 5px; }
+  svg { display: block; }
+</style>
+</head><body>`;
+
+    for (let p = 0; p < pagesNeeded; p++) {
+      const yOffset = p * usableH / printScale;
+      const viewBox = `${layout.minBx - margin} ${layout.minBy - margin + yOffset} ${fullW} ${usableH / printScale}`;
+
+      html += `<div class="page">
+  <div class="page-header">Stairmaster Cut Guide — Page ${p + 1} of ${pagesNeeded}</div>
+  <svg xmlns="http://www.w3.org/2000/svg" width="${usableW}" height="${usableH}" viewBox="${viewBox}">
+    ${svgClone.querySelector('g').outerHTML}
+  </svg>
+</div>`;
+    }
+
+    html += '</body></html>';
+
+    // Open in new window and trigger print
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => {
+      win.print();
+    };
+  }
+
   // Compute the stringer layout on a flat board
   let layout = $derived.by(() => {
     if (!sceneParams) return null;
@@ -418,6 +483,11 @@
     {@const scale = Math.min(svgWidth / totalW, svgHeight / totalH, 8)}
     {@const ox = -L.minBx + margin}
     {@const oy = -L.minBy + margin}
+
+    <div class="cut-toolbar">
+      <button onclick={printCutGuide} title="Print or save as PDF">Print / PDF</button>
+      <button onclick={resetView} title="Reset zoom and pan">Reset View</button>
+    </div>
 
     <svg
       bind:this={svgEl}
@@ -899,8 +969,29 @@
     min-height: 300px;
     overflow: auto;
     background: white;
+    display: flex;
+    flex-direction: column;
   }
+  .cut-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+    flex-shrink: 0;
+  }
+  .cut-toolbar button {
+    padding: 4px 12px;
+    background: #334155;
+    border: none;
+    border-radius: 4px;
+    color: #e2e8f0;
+    cursor: pointer;
+    font-size: 0.8em;
+  }
+  .cut-toolbar button:hover { background: #475569; }
   svg {
     display: block;
+    flex: 1;
   }
 </style>
