@@ -1,34 +1,58 @@
 <script>
   let { settings = $bindable(), label = '', onclose = () => {} } = $props();
+
+  let posX = $state(window.innerWidth - 360);
+  let posY = $state(80);
+  let dragging = $state(false);
+  let dragOff = { x: 0, y: 0 };
+
+  function onDragStart(e) {
+    dragging = true;
+    dragOff.x = e.clientX - posX;
+    dragOff.y = e.clientY - posY;
+    window.addEventListener('mousemove', onDragMove);
+    window.addEventListener('mouseup', onDragEnd);
+  }
+
+  function onDragMove(e) {
+    if (!dragging) return;
+    posX = Math.max(0, Math.min(window.innerWidth - 340, e.clientX - dragOff.x));
+    posY = Math.max(0, Math.min(window.innerHeight - 100, e.clientY - dragOff.y));
+  }
+
+  function onDragEnd() {
+    dragging = false;
+    window.removeEventListener('mousemove', onDragMove);
+    window.removeEventListener('mouseup', onDragEnd);
+  }
 </script>
 
-<div class="tex-editor-overlay" onclick={onclose}>
-  <div class="tex-editor" onclick={(e) => e.stopPropagation()}>
-    <div class="tex-header">
-      <span>{label} Texture Settings</span>
+  <div class="tex-editor" style="left:{posX}px; top:{posY}px;">
+    <div class="tex-header" onmousedown={onDragStart} style="cursor: grab;">
+      <span>{label}</span>
       <button class="close-btn" onclick={onclose}>X</button>
     </div>
     <div class="tex-body">
       <label title="Rotation of the texture in degrees">
         <span>Rotation</span>
         <div class="slider-row">
-          <input type="range" min="0" max="360" step="1" bind:value={settings.rotation} />
-          <input type="number" bind:value={settings.rotation} step="1" min="0" max="360" />
+          <input type="range" min="0" max="360" step="0.5" bind:value={settings.rotation} />
+          <input type="number" bind:value={settings.rotation} step="0.1" min="0" max="360" />
           <span class="unit">deg</span>
         </div>
       </label>
       <label title="Horizontal texture repeat scale. Higher = more repeats">
         <span>Scale U</span>
         <div class="slider-row">
-          <input type="range" min="0.1" max="5" step="0.05" bind:value={settings.scaleU} />
-          <input type="number" bind:value={settings.scaleU} step="0.05" min="0.1" max="10" />
+          <input type="range" min="0.01" max="10" step="0.01" bind:value={settings.scaleU} />
+          <input type="number" bind:value={settings.scaleU} step="0.01" min="0.01" max="50" />
         </div>
       </label>
       <label title="Vertical texture repeat scale. Higher = more repeats">
         <span>Scale V</span>
         <div class="slider-row">
-          <input type="range" min="0.1" max="5" step="0.05" bind:value={settings.scaleV} />
-          <input type="number" bind:value={settings.scaleV} step="0.05" min="0.1" max="10" />
+          <input type="range" min="0.01" max="10" step="0.01" bind:value={settings.scaleV} />
+          <input type="number" bind:value={settings.scaleV} step="0.01" min="0.01" max="50" />
         </div>
       </label>
       <label title="How the texture is projected onto the geometry">
@@ -45,8 +69,8 @@
       <label title="Strength of the bump/displacement effect. Higher values create deeper surface relief.">
         <span>Bump Strength</span>
         <div class="slider-row">
-          <input type="range" min="0" max="0.5" step="0.01" bind:value={settings.bumpScale} />
-          <input type="number" bind:value={settings.bumpScale} step="0.01" min="0" max="1" />
+          <input type="range" min="0" max="2" step="0.01" bind:value={settings.bumpScale} />
+          <input type="number" bind:value={settings.bumpScale} step="0.01" min="0" max="5" />
         </div>
       </label>
       <label title="Surface roughness. 0 = mirror-like, 1 = fully diffuse/matte.">
@@ -66,8 +90,8 @@
       <label title="Normal map strength. Controls how pronounced the surface detail appears under lighting.">
         <span>Normal Strength</span>
         <div class="slider-row">
-          <input type="range" min="0" max="3" step="0.1" bind:value={settings.normalScale} />
-          <input type="number" bind:value={settings.normalScale} step="0.1" min="0" max="5" />
+          <input type="range" min="0" max="10" step="0.1" bind:value={settings.normalScale} />
+          <input type="number" bind:value={settings.normalScale} step="0.1" min="0" max="20" />
         </div>
       </label>
       <label title="Tint color multiplied over the texture. White = no tint.">
@@ -109,24 +133,19 @@
       </div>
     </div>
   </div>
-</div>
 
 <style>
-  .tex-editor-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
   .tex-editor {
+    position: fixed;
+    z-index: 1000;
     background: #1e293b;
     border: 1px solid #475569;
     border-radius: 8px;
     width: 320px;
     overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
   }
   .tex-header {
     display: flex;

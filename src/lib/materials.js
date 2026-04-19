@@ -97,6 +97,81 @@ function loadTexture(file) {
 }
 
 /**
+ * Generate a normal map from a diffuse texture using a Sobel filter.
+ * Returns a THREE.CanvasTexture. The texture must be fully loaded first,
+ * so we attach it via onLoad.
+ */
+function generateNormalMap(sourceTex, strength = 2.0) {
+  const key = `normal_${sourceTex.id || sourceTex.uuid}_${strength}`;
+  if (textureCache.has(key)) return textureCache.get(key);
+
+  const canvas = document.createElement('canvas');
+  const placeholder = new THREE.CanvasTexture(canvas);
+  placeholder.wrapS = THREE.RepeatWrapping;
+  placeholder.wrapT = THREE.RepeatWrapping;
+  textureCache.set(key, placeholder);
+
+  // Wait for source to load, then compute
+  const img = sourceTex.image;
+  function compute(image) {
+    const w = image.width || image.naturalWidth;
+    const h = image.height || image.naturalHeight;
+    if (!w || !h) return;
+
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0, w, h);
+    const src = ctx.getImageData(0, 0, w, h);
+    const dst = ctx.createImageData(w, h);
+
+    function gray(x, y) {
+      x = ((x % w) + w) % w;
+      y = ((y % h) + h) % h;
+      const i = (y * w + x) * 4;
+      return (src.data[i] * 0.299 + src.data[i + 1] * 0.587 + src.data[i + 2] * 0.114) / 255;
+    }
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        // Sobel filter
+        const tl = gray(x - 1, y - 1), t = gray(x, y - 1), tr = gray(x + 1, y - 1);
+        const l = gray(x - 1, y), r = gray(x + 1, y);
+        const bl = gray(x - 1, y + 1), b = gray(x, y + 1), br = gray(x + 1, y + 1);
+
+        const dx = (tr + 2 * r + br - tl - 2 * l - bl) * strength;
+        const dy = (bl + 2 * b + br - tl - 2 * t - tr) * strength;
+        const dz = 1.0;
+        const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        const i = (y * w + x) * 4;
+        dst.data[i] = ((dx / len) * 0.5 + 0.5) * 255;
+        dst.data[i + 1] = ((dy / len) * 0.5 + 0.5) * 255;
+        dst.data[i + 2] = ((dz / len) * 0.5 + 0.5) * 255;
+        dst.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(dst, 0, 0);
+    placeholder.needsUpdate = true;
+  }
+
+  if (img && (img.complete || img.width)) {
+    compute(img);
+  } else {
+    sourceTex.image = sourceTex.image || new Image();
+    sourceTex.addEventListener?.('load', () => { if (sourceTex.image) compute(sourceTex.image); });
+    // Also try onUpdate for Three.js texture loading
+    const origOnUpdate = sourceTex.onUpdate;
+    sourceTex.onUpdate = () => {
+      if (origOnUpdate) origOnUpdate();
+      if (sourceTex.image && sourceTex.image.width) compute(sourceTex.image);
+    };
+  }
+
+  return placeholder;
+}
+
+/**
  * Apply texture settings (rotation, scale) to all textures on a material.
  */
 function applyTextureSettings(mat, settings) {
@@ -145,11 +220,15 @@ export function getTexturedMaterial(textureId, settings) {
     metalness: 0.0,
   };
 
-  // Normal map (skip EXR)
+  // Normal map: use dedicated file if available (non-EXR), else generate from diffuse
   if (entry.normal && !entry.normal.endsWith('.exr')) {
     const normalTex = loadTexture(entry.normal);
     normalTex.colorSpace = THREE.LinearSRGBColorSpace;
     matParams.normalMap = normalTex;
+    matParams.normalScale = new THREE.Vector2(1, 1);
+  } else {
+    // Auto-generate normal map from diffuse via Sobel filter
+    matParams.normalMap = generateNormalMap(diffuse, 2.0);
     matParams.normalScale = new THREE.Vector2(1, 1);
   }
 
