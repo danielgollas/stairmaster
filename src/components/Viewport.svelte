@@ -148,20 +148,30 @@
       }
     }
 
-    // Restore saved camera if available for this view mode
+    // Restore saved camera if available and valid for this view mode
     const savedCam = loadCamera();
-    if (savedCam && savedCam.viewMode === mode) {
-      camera.position.fromArray(savedCam.position);
+    const maxDist = 10; // meters — reject if camera is absurdly far
+    let restored = false;
+    if (savedCam && savedCam.viewMode === mode && savedCam.position) {
+      const dist = Math.sqrt(savedCam.position[0] ** 2 + savedCam.position[1] ** 2 + savedCam.position[2] ** 2);
+      if (dist > 0.01 && dist < maxDist) {
+        camera.position.fromArray(savedCam.position);
+        restored = true;
+      }
     }
 
-    camera.lookAt(30 * s, 18 * s, 15 * s);
+    const defaultTarget = new THREE.Vector3(30 * s, 18 * s, 15 * s);
+    camera.lookAt(defaultTarget);
 
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
-    controls.target.set(30 * s, 18 * s, 15 * s);
+    controls.target.copy(defaultTarget);
 
-    if (savedCam && savedCam.viewMode === mode && savedCam.target) {
-      controls.target.fromArray(savedCam.target);
+    if (restored && savedCam.target) {
+      const tDist = Math.sqrt(savedCam.target[0] ** 2 + savedCam.target[1] ** 2 + savedCam.target[2] ** 2);
+      if (tDist < maxDist) {
+        controls.target.fromArray(savedCam.target);
+      }
     }
 
     controls.addEventListener('change', () => {
