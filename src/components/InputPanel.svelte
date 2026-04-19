@@ -228,6 +228,9 @@
           <option value="color">Color</option>
           <option value="white">White</option>
           <option value="textured">Textured</option>
+          <option value="normals">Normals</option>
+          <option value="bump">Bump</option>
+          <option value="diffuse">Diffuse Only</option>
           <option value="xray">X-Ray</option>
         </select>
       </label>

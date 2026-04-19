@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getTexturedMaterial } from './materials.js';
+import { getTexturedMaterial, getDebugMaterial } from './materials.js';
 
 const COLORS = {
   concrete:  0xa6a6a6,
@@ -98,6 +98,22 @@ function makeMesh(geo, color, opacity = 1, role = null) {
         roughness: 0.7,
         metalness: 0.0,
       });
+      break;
+    }
+    case 'normals':
+    case 'bump':
+    case 'diffuse': {
+      const texId = role && _materialAssignments[role];
+      const texSettings = role && _textureSettings[role];
+      if (texId) {
+        if (texSettings && texSettings.mapping && texSettings.mapping !== 'uv') {
+          geo.computeVertexNormals();
+          projectUVs(geo, texSettings.mapping);
+        }
+        mat = getDebugMaterial(texId, _faceMode, texSettings);
+        if (mat) break;
+      }
+      mat = new THREE.MeshBasicMaterial({ color: 0x888888 });
       break;
     }
     default: { // 'color'

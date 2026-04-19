@@ -280,6 +280,50 @@ export function getTexturedMaterial(textureId, settings) {
 }
 
 /**
+ * Get a material that visualizes a specific map channel (normals, bump, diffuse-only).
+ * @param {string} textureId
+ * @param {string} channel - 'normals' | 'bump' | 'diffuse'
+ * @param {object} settings
+ */
+export function getDebugMaterial(textureId, channel, settings) {
+  const cacheKey = `debug_${textureId}_${channel}`;
+  if (materialCache.has(cacheKey)) return materialCache.get(cacheKey).clone();
+
+  let entry = null;
+  for (const cat of Object.values(TEXTURE_CATALOG)) {
+    entry = cat.find(e => e.id === textureId);
+    if (entry) break;
+  }
+  if (!entry) return null;
+
+  const diffuse = loadTexture(entry.file);
+  diffuse.colorSpace = THREE.SRGBColorSpace;
+
+  let mapTex;
+  if (channel === 'normals') {
+    if (entry.normal && !entry.normal.endsWith('.exr')) {
+      mapTex = loadTexture(entry.normal);
+    } else {
+      mapTex = generateNormalMap(diffuse, 2.0);
+    }
+  } else if (channel === 'bump') {
+    if (entry.displacement && !entry.displacement.endsWith('.exr')) {
+      mapTex = loadTexture(entry.displacement);
+    } else {
+      mapTex = diffuse; // bump from diffuse
+    }
+  } else {
+    mapTex = diffuse;
+  }
+
+  // Show the map as the visible color — unlit so we see the raw data
+  const mat = new THREE.MeshBasicMaterial({ map: mapTex });
+  applyTextureSettings(mat, settings);
+  materialCache.set(cacheKey, mat);
+  return mat.clone();
+}
+
+/**
  * Dispose all cached textures and materials.
  */
 export function disposeAllMaterials() {
