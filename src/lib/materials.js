@@ -166,7 +166,11 @@ export function getTexturedMaterial(textureId, settings) {
     const bumpTex = loadTexture(entry.displacement);
     bumpTex.colorSpace = THREE.LinearSRGBColorSpace;
     matParams.bumpMap = bumpTex;
-    matParams.bumpScale = 0.02;
+    matParams.bumpScale = 0.15;
+  } else {
+    // Auto-generate bump from diffuse (reuse same texture as grayscale bump)
+    matParams.bumpMap = diffuse;
+    matParams.bumpScale = 0.08;
   }
 
   const mat = new THREE.MeshStandardMaterial(matParams);
