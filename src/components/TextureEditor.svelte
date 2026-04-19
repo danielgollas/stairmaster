@@ -40,13 +40,71 @@
           <option value="planar">Planar (XZ)</option>
         </select>
       </label>
+      <div class="section-divider">Material</div>
+
+      <label title="Strength of the bump/displacement effect. Higher values create deeper surface relief.">
+        <span>Bump Strength</span>
+        <div class="slider-row">
+          <input type="range" min="0" max="0.5" step="0.01" bind:value={settings.bumpScale} />
+          <input type="number" bind:value={settings.bumpScale} step="0.01" min="0" max="1" />
+        </div>
+      </label>
+      <label title="Surface roughness. 0 = mirror-like, 1 = fully diffuse/matte.">
+        <span>Roughness</span>
+        <div class="slider-row">
+          <input type="range" min="0" max="1" step="0.05" bind:value={settings.roughness} />
+          <input type="number" bind:value={settings.roughness} step="0.05" min="0" max="1" />
+        </div>
+      </label>
+      <label title="Metallic appearance. 0 = non-metal (wood, concrete), 1 = fully metallic.">
+        <span>Metalness</span>
+        <div class="slider-row">
+          <input type="range" min="0" max="1" step="0.05" bind:value={settings.metalness} />
+          <input type="number" bind:value={settings.metalness} step="0.05" min="0" max="1" />
+        </div>
+      </label>
+      <label title="Normal map strength. Controls how pronounced the surface detail appears under lighting.">
+        <span>Normal Strength</span>
+        <div class="slider-row">
+          <input type="range" min="0" max="3" step="0.1" bind:value={settings.normalScale} />
+          <input type="number" bind:value={settings.normalScale} step="0.1" min="0" max="5" />
+        </div>
+      </label>
+      <label title="Tint color multiplied over the texture. White = no tint.">
+        <span>Color Tint</span>
+        <div class="slider-row">
+          <input type="color" bind:value={settings.colorTint} />
+          <span class="unit">{settings.colorTint}</span>
+        </div>
+      </label>
+      <label title="Self-illumination intensity. Makes the surface glow without external light.">
+        <span>Emissive</span>
+        <div class="slider-row">
+          <input type="range" min="0" max="1" step="0.05" bind:value={settings.emissive} />
+          <input type="number" bind:value={settings.emissive} step="0.05" min="0" max="1" />
+        </div>
+      </label>
+      <label title="Transparency of the material. 1 = fully opaque.">
+        <span>Opacity</span>
+        <div class="slider-row">
+          <input type="range" min="0.05" max="1" step="0.05" bind:value={settings.opacity} />
+          <input type="number" bind:value={settings.opacity} step="0.05" min="0.05" max="1" />
+        </div>
+      </label>
+
+      <div class="section-divider">Presets</div>
+
       <div class="presets">
-        <span>Presets</span>
         <div class="preset-buttons">
-          <button onclick={() => { settings.rotation = 0; settings.scaleU = 1; settings.scaleV = 1; settings.mapping = 'uv'; }}>Reset</button>
-          <button onclick={() => { settings.rotation = 90; }}>90 deg</button>
-          <button onclick={() => { settings.scaleU = 0.5; settings.scaleV = 0.5; }}>Half</button>
-          <button onclick={() => { settings.scaleU = 2; settings.scaleV = 2; }}>Double</button>
+          <button onclick={() => {
+            settings.rotation = 0; settings.scaleU = 1; settings.scaleV = 1; settings.mapping = 'uv';
+            settings.bumpScale = 0.08; settings.roughness = 0.8; settings.metalness = 0;
+            settings.normalScale = 1; settings.colorTint = '#ffffff'; settings.emissive = 0; settings.opacity = 1;
+          }}>Reset All</button>
+          <button onclick={() => { settings.roughness = 0.3; settings.metalness = 0; }}>Glossy</button>
+          <button onclick={() => { settings.roughness = 1; settings.metalness = 0; }}>Matte</button>
+          <button onclick={() => { settings.roughness = 0.2; settings.metalness = 0.8; }}>Metal</button>
+          <button onclick={() => { settings.roughness = 0.85; settings.bumpScale = 0.2; }}>Worn</button>
         </div>
       </div>
     </div>
@@ -140,6 +198,23 @@
     color: #fbbf24;
     font-family: monospace;
     font-size: 0.95em;
+  }
+  .section-divider {
+    font-size: 0.75em;
+    color: #60a5fa;
+    font-weight: 600;
+    border-top: 1px solid #334155;
+    padding-top: 8px;
+    margin-top: 2px;
+  }
+  input[type="color"] {
+    width: 36px;
+    height: 24px;
+    border: 1px solid #334155;
+    border-radius: 3px;
+    background: none;
+    padding: 0;
+    cursor: pointer;
   }
   .presets {
     display: flex;

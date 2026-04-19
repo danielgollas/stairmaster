@@ -13,7 +13,11 @@
   // Default texture settings per role
   const defaultTextureSettings = {};
   for (const g of MATERIAL_GROUPS) {
-    defaultTextureSettings[g.key] = { rotation: 0, scaleU: 1, scaleV: 1, mapping: 'uv' };
+    defaultTextureSettings[g.key] = {
+      rotation: 0, scaleU: 1, scaleV: 1, mapping: 'uv',
+      bumpScale: 0.08, roughness: 0.8, metalness: 0, normalScale: 1,
+      colorTint: '#ffffff', emissive: 0, opacity: 1,
+    };
   }
 
   // All persisted state with defaults

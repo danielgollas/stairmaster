@@ -123,7 +123,7 @@ function applyTextureSettings(mat, settings) {
 export function getTexturedMaterial(textureId, settings) {
   // Build a cache key that includes settings so different configs get different materials
   const settingsKey = settings
-    ? `${textureId}_r${settings.rotation}_su${settings.scaleU}_sv${settings.scaleV}_m${settings.mapping}`
+    ? `${textureId}_r${settings.rotation}_su${settings.scaleU}_sv${settings.scaleV}_m${settings.mapping}_b${settings.bumpScale}_rg${settings.roughness}_mt${settings.metalness}_ns${settings.normalScale}_ct${settings.colorTint}_em${settings.emissive}_op${settings.opacity}`
     : textureId;
 
   if (materialCache.has(settingsKey)) return materialCache.get(settingsKey).clone();
@@ -171,6 +171,27 @@ export function getTexturedMaterial(textureId, settings) {
     // Auto-generate bump from diffuse (reuse same texture as grayscale bump)
     matParams.bumpMap = diffuse;
     matParams.bumpScale = 0.08;
+  }
+
+  // Apply material property overrides from settings
+  if (settings) {
+    if (settings.bumpScale !== undefined) matParams.bumpScale = settings.bumpScale;
+    if (settings.roughness !== undefined) matParams.roughness = settings.roughness;
+    if (settings.metalness !== undefined) matParams.metalness = settings.metalness;
+    if (settings.normalScale !== undefined && matParams.normalMap) {
+      matParams.normalScale = new THREE.Vector2(settings.normalScale, settings.normalScale);
+    }
+    if (settings.colorTint && settings.colorTint !== '#ffffff') {
+      matParams.color = new THREE.Color(settings.colorTint);
+    }
+    if (settings.emissive && settings.emissive > 0) {
+      matParams.emissive = new THREE.Color(0xffffff);
+      matParams.emissiveIntensity = settings.emissive;
+    }
+    if (settings.opacity !== undefined && settings.opacity < 1) {
+      matParams.transparent = true;
+      matParams.opacity = settings.opacity;
+    }
   }
 
   const mat = new THREE.MeshStandardMaterial(matParams);
