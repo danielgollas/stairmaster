@@ -302,7 +302,7 @@
           </label>
           <label title="Overall strength of the AO darkening effect.">
             <span>Intensity</span>
-            <input type="number" bind:value={aoParams.n8ao.intensity} step="0.5" min="0.5" max="10" />
+            <input type="number" bind:value={aoParams.n8ao.intensity} step="0.5" min="0.5" max="30" />
           </label>
           <label title="Number of samples per pixel for AO calculation. More samples = less noise but slower.">
             <span>AO samples</span>
@@ -310,11 +310,11 @@
           </label>
           <label title="Number of samples for the denoising pass. More samples = smoother result.">
             <span>Denoise samples</span>
-            <input type="number" bind:value={aoParams.n8ao.denoiseSamples} step="2" min="2" max="32" />
+            <input type="number" bind:value={aoParams.n8ao.denoiseSamples} step="2" min="2" max="64" />
           </label>
           <label title="Pixel radius of the denoising blur. Larger values smooth more aggressively.">
             <span>Denoise radius</span>
-            <input type="number" bind:value={aoParams.n8ao.denoiseRadius} step="1" min="1" max="24" />
+            <input type="number" bind:value={aoParams.n8ao.denoiseRadius} step="1" min="1" max="48" />
           </label>
         </div>
       {/if}

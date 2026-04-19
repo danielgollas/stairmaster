@@ -41,16 +41,16 @@
     postBase: DEFAULTS.postBase,
     tensionTie: DEFAULTS.tensionTie,
     stringerHanger: DEFAULTS.stringerHanger,
-    viewMode: 'side',
-    edgeMode: 'visible',
-    faceMode: 'color',
-    aoMode: 'off',
+    viewMode: '3d',
+    edgeMode: 'none',
+    faceMode: 'white',
+    aoMode: 'ssao',
     materialAssignments: { ...DEFAULT_MATERIALS },
     textureSettings: { ...defaultTextureSettings },
     aoParams: {
-      ssao: { kernelRadius: 0.1, minDistance: 0.0001, maxDistance: 0.01 },
+      ssao: { kernelRadius: 0.1, minDistance: 0.0001, maxDistance: 0.1 },
       sao: { intensity: 0.01, scale: 1, kernelRadius: 100, bias: 0.5, blurRadius: 8 },
-      n8ao: { aoRadius: 0.15, distanceFalloff: 0.05, intensity: 3.0, aoSamples: 16, denoiseSamples: 8, denoiseRadius: 6 },
+      n8ao: { aoRadius: 0.11, distanceFalloff: 0.17, intensity: 15, aoSamples: 16, denoiseSamples: 18, denoiseRadius: 17 },
       aomap: { aoMapIntensity: 1.5 },
     },
     visibility: {
@@ -91,19 +91,20 @@
   let aoParams = $state(saved.aoParams);
   let visibility = $state(saved.visibility);
 
-  // Persist all state on change
+  // Persist all state on change — deep-serialize nested objects to trigger on inner changes
   $effect(() => {
-    saveState({
+    const snap = {
       totalHeight, topPostSpacing, riserHeight, treadDepth, stringerOC, stringerPosition,
       deckingThickness, riserBoardThickness, rimJoistWidth, sillPlateThickness,
       padAboveGrade, concreteBelow, gravelDepth, padSideClearance, padBackExtension,
       postHeight, postBase, tensionTie, stringerHanger,
       viewMode, edgeMode, faceMode, aoMode,
-      materialAssignments: { ...materialAssignments },
-      textureSettings: { ...textureSettings },
-      aoParams: { ...aoParams },
-      visibility: { ...visibility },
-    });
+      materialAssignments: JSON.parse(JSON.stringify(materialAssignments)),
+      textureSettings: JSON.parse(JSON.stringify(textureSettings)),
+      aoParams: JSON.parse(JSON.stringify(aoParams)),
+      visibility: JSON.parse(JSON.stringify(visibility)),
+    };
+    saveState(snap);
   });
 
   // Computed geometry

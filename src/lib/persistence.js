@@ -8,12 +8,21 @@ export function loadState(defaults) {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Deep merge: for nested objects (aoParams, materialAssignments, etc.)
       const result = { ...defaults };
       for (const [key, val] of Object.entries(parsed)) {
         if (val !== null && typeof val === 'object' && !Array.isArray(val) &&
             result[key] && typeof result[key] === 'object') {
-          result[key] = { ...result[key], ...val };
+          // Two-level deep merge: merge each sub-key with its default
+          const merged = { ...result[key] };
+          for (const [subKey, subVal] of Object.entries(val)) {
+            if (subVal !== null && typeof subVal === 'object' && !Array.isArray(subVal) &&
+                merged[subKey] && typeof merged[subKey] === 'object') {
+              merged[subKey] = { ...merged[subKey], ...subVal };
+            } else {
+              merged[subKey] = subVal;
+            }
+          }
+          result[key] = merged;
         } else {
           result[key] = val;
         }
@@ -33,18 +42,30 @@ export function saveState(state) {
   } catch {}
 }
 
-const CAMERA_KEY = 'stairmaster-camera';
+const CAMERA_KEY = 'stairmaster-cameras';
 
-export function loadCamera() {
+/**
+ * Load saved camera for a specific view mode.
+ */
+export function loadCamera(viewMode) {
   try {
     const saved = localStorage.getItem(CAMERA_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const all = JSON.parse(saved);
+      return all[viewMode] || null;
+    }
   } catch {}
   return null;
 }
 
-export function saveCamera(data) {
+/**
+ * Save camera for a specific view mode.
+ */
+export function saveCamera(viewMode, data) {
   try {
-    localStorage.setItem(CAMERA_KEY, JSON.stringify(data));
+    const saved = localStorage.getItem(CAMERA_KEY);
+    const all = saved ? JSON.parse(saved) : {};
+    all[viewMode] = data;
+    localStorage.setItem(CAMERA_KEY, JSON.stringify(all));
   } catch {}
 }
