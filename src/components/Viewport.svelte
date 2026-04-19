@@ -56,23 +56,7 @@
 
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
-    controls.addEventListener('change', () => {
-      requestRender();
-      // Persist camera state
-      saveCamera({
-        position: camera.position.toArray(),
-        target: controls.target.toArray(),
-        viewMode,
-      });
-    });
-
-    // Restore saved camera if same view mode
-    const savedCam = loadCamera();
-    if (savedCam && savedCam.viewMode === viewMode) {
-      camera.position.fromArray(savedCam.position);
-      controls.target.fromArray(savedCam.target);
-      controls.update();
-    }
+    controls.addEventListener('change', requestRender);
 
     setView(viewMode);
   }
@@ -164,12 +148,30 @@
       }
     }
 
+    // Restore saved camera if available for this view mode
+    const savedCam = loadCamera();
+    if (savedCam && savedCam.viewMode === mode) {
+      camera.position.fromArray(savedCam.position);
+    }
+
     camera.lookAt(30 * s, 18 * s, 15 * s);
 
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
     controls.target.set(30 * s, 18 * s, 15 * s);
-    controls.addEventListener('change', requestRender);
+
+    if (savedCam && savedCam.viewMode === mode && savedCam.target) {
+      controls.target.fromArray(savedCam.target);
+    }
+
+    controls.addEventListener('change', () => {
+      requestRender();
+      saveCamera({
+        position: camera.position.toArray(),
+        target: controls.target.toArray(),
+        viewMode: mode,
+      });
+    });
     controls.update();
 
     // Rebuild composer with new camera
@@ -313,8 +315,12 @@
     requestRender();
   });
 
+  let lastViewMode = null;
   $effect(() => {
-    if (renderer && canvas) setView(viewMode);
+    if (renderer && canvas && viewMode !== lastViewMode) {
+      lastViewMode = viewMode;
+      setView(viewMode);
+    }
   });
 
   $effect(() => {

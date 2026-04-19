@@ -78,8 +78,14 @@ function makeMesh(geo, color, opacity = 1, role = null) {
     case 'textured': {
       // Try to use a real texture if a role is assigned
       const texId = role && _materialAssignments[role];
+      const texSettings = role && _textureSettings[role];
       if (texId) {
-        mat = getTexturedMaterial(texId, _textureSettings[role]);
+        // Apply projection mapping if not default UV
+        if (texSettings && texSettings.mapping && texSettings.mapping !== 'uv') {
+          geo.computeVertexNormals();
+          projectUVs(geo, texSettings.mapping);
+        }
+        mat = getTexturedMaterial(texId, texSettings);
         if (mat) {
           if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; }
           break;
@@ -148,6 +154,50 @@ function makeMesh(geo, color, opacity = 1, role = null) {
 
 function box(w, h, d) {
   return new THREE.BoxGeometry(w, h, d);
+}
+
+/**
+ * Recompute UV coordinates based on a projection mode using world-space positions.
+ * @param {THREE.BufferGeometry} geo - must have position attribute
+ * @param {string} mode - 'box' | 'cylinder' | 'planar'
+ */
+function projectUVs(geo, mode) {
+  const pos = geo.getAttribute('position');
+  const nor = geo.getAttribute('normal');
+  if (!pos) return;
+
+  const uv = geo.getAttribute('uv') || new THREE.BufferAttribute(new Float32Array(pos.count * 2), 2);
+  const v = new THREE.Vector3();
+  const n = new THREE.Vector3();
+
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    let u2, v2;
+
+    if (mode === 'box' && nor) {
+      // Tri-planar: pick dominant axis from normal, project the other two
+      n.set(Math.abs(nor.getX(i)), Math.abs(nor.getY(i)), Math.abs(nor.getZ(i)));
+      if (n.x >= n.y && n.x >= n.z) {
+        u2 = v.y; v2 = v.z; // YZ plane
+      } else if (n.y >= n.x && n.y >= n.z) {
+        u2 = v.x; v2 = v.z; // XZ plane
+      } else {
+        u2 = v.x; v2 = v.y; // XY plane
+      }
+    } else if (mode === 'cylinder') {
+      // Cylinder around Z axis
+      const angle = Math.atan2(v.y, v.x);
+      u2 = angle / (2 * Math.PI) + 0.5;
+      v2 = v.z;
+    } else {
+      // Planar XZ
+      u2 = v.x;
+      v2 = v.z;
+    }
+    uv.setXY(i, u2, v2);
+  }
+  uv.needsUpdate = true;
+  geo.setAttribute('uv', uv);
 }
 
 /**
