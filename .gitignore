@@ -3,11 +3,3 @@ node_modules/
 dist/
 *.DS_Store
 .DS_Store
-src/materials/*.jpg
-src/materials/*.png
-src/materials/*.blend
-src/materials/*.blend.zip
-src/materials/**/*.jpg
-src/materials/**/*.png
-src/materials/**/*.exr
-src/materials/**/*.blend
