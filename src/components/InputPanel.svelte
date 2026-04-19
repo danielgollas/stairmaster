@@ -1,4 +1,9 @@
 <script>
+  import { TEXTURE_CATALOG, MATERIAL_GROUPS } from '../lib/materials.js';
+  import TextureEditor from './TextureEditor.svelte';
+
+  let editingTexture = $state(null); // { key, label } or null
+
   let {
     totalHeight = $bindable(),
     topPostSpacing = $bindable(),
@@ -24,6 +29,8 @@
     faceMode = $bindable(),
     aoMode = $bindable(),
     aoParams = $bindable(),
+    materialAssignments = $bindable(),
+    textureSettings = $bindable(),
   } = $props();
 
   const visTree = {
@@ -62,6 +69,7 @@
     pad: false,
     hardware: false,
     render: true,
+    textures: false,
     display: true,
   });
 
@@ -320,6 +328,37 @@
     </div>
   {/if}
 
+  <!-- Textures -->
+  <button class="section-header" onclick={() => toggle('textures')}>
+    <span>{sections.textures ? '▾' : '▸'}</span> Textures
+  </button>
+  {#if sections.textures}
+    <div class="section-body">
+      {#each MATERIAL_GROUPS as group}
+        <div class="tex-row">
+          <span class="tex-label" title="Texture for {group.label} (used in Textured face mode)">{group.label}</span>
+          <select bind:value={materialAssignments[group.key]} class="render-select tex-select">
+            {#each TEXTURE_CATALOG[group.category] as tex}
+              <option value={tex.id}>{tex.name}</option>
+            {/each}
+          </select>
+          <button class="tex-edit-btn" title="Edit texture mapping"
+            onclick={() => editingTexture = { key: group.key, label: group.label }}>
+            ...
+          </button>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+  {#if editingTexture && textureSettings[editingTexture.key]}
+    <TextureEditor
+      label={editingTexture.label}
+      bind:settings={textureSettings[editingTexture.key]}
+      onclose={() => editingTexture = null}
+    />
+  {/if}
+
   <!-- Display -->
   <button class="section-header" onclick={() => toggle('display')}>
     <span>{sections.display ? '▾' : '▸'}</span> Display
@@ -427,6 +466,32 @@
     color: #0f172a;
     font-weight: 600;
   }
+  .tex-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85em;
+    color: #cbd5e1;
+  }
+  .tex-label {
+    flex: 1;
+    min-width: 0;
+  }
+  .tex-select {
+    width: 85px !important;
+    flex-shrink: 0;
+  }
+  .tex-edit-btn {
+    padding: 2px 6px;
+    background: #334155;
+    border: none;
+    border-radius: 3px;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.8em;
+    flex-shrink: 0;
+  }
+  .tex-edit-btn:hover { background: #475569; color: #e2e8f0; }
   .render-select {
     width: 100px;
     padding: 3px 6px;

@@ -3,65 +3,103 @@
   import { computeStairGeometry, computePadDimensions, computeStringerProfile } from './lib/calculations.js';
   import { checkIRC } from './lib/code-checks.js';
   import { generateScad } from './lib/scad-generator.js';
+  import { DEFAULT_MATERIALS, MATERIAL_GROUPS } from './lib/materials.js';
+  import { loadState, saveState } from './lib/persistence.js';
   import InputPanel from './components/InputPanel.svelte';
   import Viewport from './components/Viewport.svelte';
   import CutGuide from './components/CutGuide.svelte';
   import OutputPanel from './components/OutputPanel.svelte';
 
-  // Reactive input state
-  let totalHeight = $state(35);
-  let topPostSpacing = $state(36);
-  let riserHeight = $state(DEFAULTS.riserHeight);
-  let treadDepth = $state(DEFAULTS.treadDepth);
-  let stringerOC = $state(DEFAULTS.stringerOC);
-  let stringerPosition = $state('inside');
-  let deckingThickness = $state(DEFAULTS.deckingThickness);
-  let riserBoardThickness = $state(DEFAULTS.riserBoardThickness);
-  let rimJoistWidth = $state(DEFAULTS.rimJoistWidth);
-  let sillPlateThickness = $state(DEFAULTS.sillPlateThickness);
-  let padAboveGrade = $state(DEFAULTS.padAboveGrade);
-  let concreteBelow = $state(DEFAULTS.concreteBelow);
-  let gravelDepth = $state(DEFAULTS.gravelDepth);
-  let padSideClearance = $state(DEFAULTS.padSideClearance);
-  let padBackExtension = $state(DEFAULTS.padBackExtension);
-
-  let postHeight = $state(DEFAULTS.postHeight);
-
-  let postBase = $state(DEFAULTS.postBase);
-  let tensionTie = $state(DEFAULTS.tensionTie);
-  let stringerHanger = $state(DEFAULTS.stringerHanger);
-
-  let viewMode = $state('side');
-  let edgeMode = $state('visible');
-  let faceMode = $state('color');
-  let aoMode = $state('off');
-
-  // AO tuning parameters (per-algorithm defaults)
-  let aoParams = $state({
-    ssao: { kernelRadius: 0.1, minDistance: 0.0001, maxDistance: 0.01 },
-    sao: { intensity: 0.01, scale: 1, kernelRadius: 100, bias: 0.5, blurRadius: 8 },
-    n8ao: { aoRadius: 0.15, distanceFalloff: 0.05, intensity: 3.0, aoSamples: 16, denoiseSamples: 8, denoiseRadius: 6 },
-    aomap: { aoMapIntensity: 1.5 },
-  });
-
-  // Visibility toggles (alphabetical, persisted to localStorage)
-  const defaultVisibility = {
-    blocking: true, boardOverlay: false, bottomPosts: true, concretePad: true, deckSurface: true, measureGrid: false,
-    dimensions: true, grid: true, groundPlane: true, hogPanel: true, postBases: true,
-    railingFrame: true, rimJoist: true, risers: true, sillPlate: true, stringerHangers: true,
-    stringers: true, tensionTies: true, topPosts: true, treads: true,
-  };
-  function loadVisibility() {
-    try {
-      const saved = localStorage.getItem('stairmaster-visibility');
-      if (saved) return { ...defaultVisibility, ...JSON.parse(saved) };
-    } catch {}
-    return { ...defaultVisibility };
+  // Default texture settings per role
+  const defaultTextureSettings = {};
+  for (const g of MATERIAL_GROUPS) {
+    defaultTextureSettings[g.key] = { rotation: 0, scaleU: 1, scaleV: 1, mapping: 'uv' };
   }
-  let visibility = $state(loadVisibility());
+
+  // All persisted state with defaults
+  const STATE_DEFAULTS = {
+    totalHeight: 35,
+    topPostSpacing: 36,
+    riserHeight: DEFAULTS.riserHeight,
+    treadDepth: DEFAULTS.treadDepth,
+    stringerOC: DEFAULTS.stringerOC,
+    stringerPosition: 'inside',
+    deckingThickness: DEFAULTS.deckingThickness,
+    riserBoardThickness: DEFAULTS.riserBoardThickness,
+    rimJoistWidth: DEFAULTS.rimJoistWidth,
+    sillPlateThickness: DEFAULTS.sillPlateThickness,
+    padAboveGrade: DEFAULTS.padAboveGrade,
+    concreteBelow: DEFAULTS.concreteBelow,
+    gravelDepth: DEFAULTS.gravelDepth,
+    padSideClearance: DEFAULTS.padSideClearance,
+    padBackExtension: DEFAULTS.padBackExtension,
+    postHeight: DEFAULTS.postHeight,
+    postBase: DEFAULTS.postBase,
+    tensionTie: DEFAULTS.tensionTie,
+    stringerHanger: DEFAULTS.stringerHanger,
+    viewMode: 'side',
+    edgeMode: 'visible',
+    faceMode: 'color',
+    aoMode: 'off',
+    materialAssignments: { ...DEFAULT_MATERIALS },
+    textureSettings: { ...defaultTextureSettings },
+    aoParams: {
+      ssao: { kernelRadius: 0.1, minDistance: 0.0001, maxDistance: 0.01 },
+      sao: { intensity: 0.01, scale: 1, kernelRadius: 100, bias: 0.5, blurRadius: 8 },
+      n8ao: { aoRadius: 0.15, distanceFalloff: 0.05, intensity: 3.0, aoSamples: 16, denoiseSamples: 8, denoiseRadius: 6 },
+      aomap: { aoMapIntensity: 1.5 },
+    },
+    visibility: {
+      blocking: true, boardOverlay: false, bottomPosts: true, concretePad: true, deckSurface: true, measureGrid: false,
+      dimensions: true, grid: true, groundPlane: true, hogPanel: true, postBases: true,
+      railingFrame: true, rimJoist: true, risers: true, sillPlate: true, stringerHangers: true,
+      stringers: true, tensionTies: true, topPosts: true, treads: true,
+    },
+  };
+
+  const saved = loadState(STATE_DEFAULTS);
+
+  let totalHeight = $state(saved.totalHeight);
+  let topPostSpacing = $state(saved.topPostSpacing);
+  let riserHeight = $state(saved.riserHeight);
+  let treadDepth = $state(saved.treadDepth);
+  let stringerOC = $state(saved.stringerOC);
+  let stringerPosition = $state(saved.stringerPosition);
+  let deckingThickness = $state(saved.deckingThickness);
+  let riserBoardThickness = $state(saved.riserBoardThickness);
+  let rimJoistWidth = $state(saved.rimJoistWidth);
+  let sillPlateThickness = $state(saved.sillPlateThickness);
+  let padAboveGrade = $state(saved.padAboveGrade);
+  let concreteBelow = $state(saved.concreteBelow);
+  let gravelDepth = $state(saved.gravelDepth);
+  let padSideClearance = $state(saved.padSideClearance);
+  let padBackExtension = $state(saved.padBackExtension);
+  let postHeight = $state(saved.postHeight);
+  let postBase = $state(saved.postBase);
+  let tensionTie = $state(saved.tensionTie);
+  let stringerHanger = $state(saved.stringerHanger);
+  let viewMode = $state(saved.viewMode);
+  let edgeMode = $state(saved.edgeMode);
+  let faceMode = $state(saved.faceMode);
+  let aoMode = $state(saved.aoMode);
+  let materialAssignments = $state(saved.materialAssignments);
+  let textureSettings = $state(saved.textureSettings);
+  let aoParams = $state(saved.aoParams);
+  let visibility = $state(saved.visibility);
+
+  // Persist all state on change
   $effect(() => {
-    const vis = { ...visibility };
-    try { localStorage.setItem('stairmaster-visibility', JSON.stringify(vis)); } catch {}
+    saveState({
+      totalHeight, topPostSpacing, riserHeight, treadDepth, stringerOC, stringerPosition,
+      deckingThickness, riserBoardThickness, rimJoistWidth, sillPlateThickness,
+      padAboveGrade, concreteBelow, gravelDepth, padSideClearance, padBackExtension,
+      postHeight, postBase, tensionTie, stringerHanger,
+      viewMode, edgeMode, faceMode, aoMode,
+      materialAssignments: { ...materialAssignments },
+      textureSettings: { ...textureSettings },
+      aoParams: { ...aoParams },
+      visibility: { ...visibility },
+    });
   });
 
   // Computed geometry
@@ -127,6 +165,8 @@
     faceMode,
     aoMode,
     aoParams: aoParams[aoMode] || {},
+    materialAssignments,
+    textureSettings,
   });
 
   // .scad source for download (visibility-filtered)
@@ -153,7 +193,7 @@
       bind:padAboveGrade bind:concreteBelow bind:gravelDepth bind:padSideClearance bind:padBackExtension
       bind:postHeight bind:postBase bind:tensionTie bind:stringerHanger
       bind:visibility
-      bind:edgeMode bind:faceMode bind:aoMode bind:aoParams
+      bind:edgeMode bind:faceMode bind:aoMode bind:aoParams bind:materialAssignments bind:textureSettings
     />
   </div>
 

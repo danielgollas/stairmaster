@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getTexturedMaterial } from './materials.js';
 
 const COLORS = {
   concrete:  0xa6a6a6,
@@ -22,6 +23,8 @@ let _edgeMode = 'none';
 let _faceMode = 'color';
 let _aoMode = 'off';
 let _aoMapIntensity = 1.5;
+let _materialAssignments = {};
+let _textureSettings = {};
 
 
 function makeAoMap(width = 64, height = 64) {
@@ -51,7 +54,7 @@ function makeAoMap(width = 64, height = 64) {
 
 let _aoMapTex = null;
 
-function makeMesh(geo, color, opacity = 1) {
+function makeMesh(geo, color, opacity = 1, role = null) {
   let mat;
   // Post-processing AO modes need MeshStandardMaterial for proper depth/normals
   const needsStandard = ['ssao', 'sao', 'n8ao'].includes(_aoMode);
@@ -72,7 +75,16 @@ function makeMesh(geo, color, opacity = 1) {
         ? new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0.0, transparent: opacity < 1, opacity })
         : new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true, transparent: opacity < 1, opacity });
       break;
-    case 'textured':
+    case 'textured': {
+      // Try to use a real texture if a role is assigned
+      const texId = role && _materialAssignments[role];
+      if (texId) {
+        mat = getTexturedMaterial(texId, _textureSettings[role]);
+        if (mat) {
+          if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; }
+          break;
+        }
+      }
       mat = new THREE.MeshStandardMaterial({
         color,
         transparent: opacity < 1,
@@ -81,6 +93,7 @@ function makeMesh(geo, color, opacity = 1) {
         metalness: 0.0,
       });
       break;
+    }
     default: { // 'color'
       if (needsStandard) {
         mat = new THREE.MeshStandardMaterial({
@@ -138,6 +151,33 @@ function box(w, h, d) {
 }
 
 /**
+ * Scale and optionally rotate UV coordinates.
+ * @param {THREE.BufferGeometry} geo
+ * @param {number} scale - world units per texture repeat (e.g. 12 = one repeat per 12")
+ * @param {number} angle - rotation in radians (applied before scaling)
+ */
+function scaleUVs(geo, scale = 12, angle = 0) {
+  const uv = geo.getAttribute('uv');
+  if (!uv) return;
+  const f = 1 / scale;
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  for (let i = 0; i < uv.count; i++) {
+    let u = uv.getX(i);
+    let v = uv.getY(i);
+    if (angle !== 0) {
+      const ru = u * cosA - v * sinA;
+      const rv = u * sinA + v * cosA;
+      u = ru;
+      v = rv;
+    }
+    uv.setX(i, u * f);
+    uv.setY(i, v * f);
+  }
+  uv.needsUpdate = true;
+}
+
+/**
  * Build all stair components as separate Three.js meshes.
  * Returns { componentName: THREE.Object3D }
  *
@@ -148,6 +188,8 @@ export function buildScene(p) {
   _faceMode = p.faceMode || 'color';
   _aoMode = p.aoMode || 'off';
   _aoMapIntensity = (p.aoParams && p.aoParams.aoMapIntensity) ?? 1.5;
+  _materialAssignments = p.materialAssignments || {};
+  _textureSettings = p.textureSettings || {};
   _aoMapTex = null;
   const meshes = {};
 
@@ -243,13 +285,13 @@ export function buildScene(p) {
   const padCenterX = (padFrontX + padBackX) / 2;
 
   // Gravel
-  const gravelMesh = makeMesh(box(p.padDepth, p.padWidth, p.gravelDepth), COLORS.gravel);
+  const gravelMesh = makeMesh(box(p.padDepth, p.padWidth, p.gravelDepth), COLORS.gravel, 1, 'gravel');
   gravelMesh.position.set(padCenterX, padCenterY, -(p.concreteBelow + p.gravelDepth / 2));
   padGroup.add(gravelMesh);
 
   // Concrete
   const concreteH = p.concreteBelow + p.padAboveGrade;
-  const concreteMesh = makeMesh(box(p.padDepth, p.padWidth, concreteH), COLORS.concrete);
+  const concreteMesh = makeMesh(box(p.padDepth, p.padWidth, concreteH), COLORS.concrete, 1, 'concrete');
   concreteMesh.position.set(padCenterX, padCenterY, -p.concreteBelow + concreteH / 2);
   padGroup.add(concreteMesh);
 
@@ -277,7 +319,7 @@ export function buildScene(p) {
   const seatEndXC = -botAtX0C / slopeC;  // where bottom edge meets y=0 (stringer heel)
   // Sill left edge at padShift, right edge at seatEndXC
   const sillDepth = seatEndXC - padShift;
-  const sillMesh = makeMesh(box(sillDepth, compWidth, p.sillPlateThickness), COLORS.sillPlate);
+  const sillMesh = makeMesh(box(sillDepth, compWidth, p.sillPlateThickness), COLORS.sillPlate, 1, 'sillPlate');
   sillMesh.position.set(padShift + sillDepth / 2, compCenterY, p.padAboveGrade + p.sillPlateThickness / 2);
   meshes.sillPlate = sillMesh;
 
@@ -290,11 +332,11 @@ export function buildScene(p) {
 
   // Posts aligned with sill plate start — left face at padShift
   const postX = padShift + ps / 2;
-  const lPost = makeMesh(box(ps, ps, postH), COLORS.post);
+  const lPost = makeMesh(box(ps, ps, postH), COLORS.post, 1, 'posts');
   lPost.position.set(postX, leftPostY + ps / 2, postBaseZ + postH / 2);
   postGroup.add(lPost);
 
-  const rPost = makeMesh(box(ps, ps, postH), COLORS.post);
+  const rPost = makeMesh(box(ps, ps, postH), COLORS.post, 1, 'posts');
   rPost.position.set(postX, rightPostY + ps / 2, postBaseZ + postH / 2);
   postGroup.add(rPost);
 
@@ -320,9 +362,8 @@ export function buildScene(p) {
   const stringerShape = buildStringerShape(p);
   const extSettings = { depth: p.stringerStockThickness, bevelEnabled: false };
   const baseGeo = new THREE.ExtrudeGeometry(stringerShape, extSettings);
-  // Shape in XY extruded along +Z. We need: X→X(run), Y→Z(height), Z→Y(width)
-  // rotateX(-PI/2): Y→-Z, Z→Y. So shape Y goes DOWN (wrong).
-  // rotateX(PI/2): Y→Z, Z→-Y. Shape Y goes UP (correct), extrusion goes -Y.
+  const stairAngleRad = Math.atan2(p.actualRiserHeight, p.treadDepth);
+  scaleUVs(baseGeo, 12, stairAngleRad);
   baseGeo.rotateX(Math.PI / 2);
 
   const seatZ = p.padAboveGrade + p.sillPlateThickness;
@@ -330,7 +371,7 @@ export function buildScene(p) {
   for (let i = 0; i < p.numStringers; i++) {
     const y = firstStringerY + i * p.actualOC;
     const geo = baseGeo.clone();
-    const mesh = makeMesh(geo, COLORS.stringer);
+    const mesh = makeMesh(geo, COLORS.stringer, 1, 'stringers');
     mesh.position.set(0, y + p.stringerStockThickness, seatZ);
     stringerGroup.add(mesh);
   }
@@ -372,6 +413,7 @@ export function buildScene(p) {
       depth: p.stringerStockThickness,
       bevelEnabled: false,
     });
+    scaleUVs(boardGeo, 12, stairAngleRad);
     boardGeo.rotateX(Math.PI / 2);
 
     const boardMat = new THREE.MeshPhongMaterial({
@@ -400,7 +442,7 @@ export function buildScene(p) {
     const blockLen = p.actualOC - p.stringerStockThickness;
     // Blocking left face aligns with post right face
     const blockX = padShift + ps + blockThickness / 2;
-    const block = makeMesh(box(blockThickness, blockLen, blockHeight), COLORS.blocking);
+    const block = makeMesh(box(blockThickness, blockLen, blockHeight), COLORS.blocking, 1, 'blocking');
     block.position.set(blockX, yStart + blockLen / 2, blockZ);
     blockingGroup.add(block);
   }
@@ -446,11 +488,11 @@ export function buildScene(p) {
       ? rimFace - (boardW + gap + boardW)
       : x - p.riserBoardThickness;
 
-    const front = makeMesh(box(boardW, compWidth, p.deckingThickness), COLORS.decking);
+    const front = makeMesh(box(boardW, compWidth, p.deckingThickness), COLORS.decking, 1, 'treads');
     front.position.set(treadStart + boardW / 2, compCenterY, nz + p.deckingThickness / 2);
     treadsGroup.add(front);
 
-    const back = makeMesh(box(boardW, compWidth, p.deckingThickness), COLORS.decking);
+    const back = makeMesh(box(boardW, compWidth, p.deckingThickness), COLORS.decking, 1, 'treads');
     back.position.set(treadStart + boardW + gap + boardW / 2, compCenterY, nz + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
@@ -472,13 +514,13 @@ export function buildScene(p) {
 
     // Single board spans full stair width
     // Bottom piece: full 2x6 (5.5")
-    const fullBoard = makeMesh(box(p.riserBoardThickness, compWidth, Math.min(fullBoardH, riserH)), COLORS.riser);
+    const fullBoard = makeMesh(box(p.riserBoardThickness, compWidth, Math.min(fullBoardH, riserH)), COLORS.riser, 1, 'risers');
     fullBoard.position.set(riserX + p.riserBoardThickness / 2, compCenterY, riserBottom + Math.min(fullBoardH, riserH) / 2);
     risersGroup.add(fullBoard);
 
     // Top piece: ripped 2x6 to fill remaining height
     if (ripH > 0.01) {
-      const ripBoard = makeMesh(box(p.riserBoardThickness, compWidth, ripH), COLORS.riserRip);
+      const ripBoard = makeMesh(box(p.riserBoardThickness, compWidth, ripH), COLORS.riserRip, 1, 'risers');
       ripBoard.position.set(riserX + p.riserBoardThickness / 2, compCenterY, riserBottom + fullBoardH + ripH / 2);
       risersGroup.add(ripBoard);
     }
@@ -501,13 +543,13 @@ export function buildScene(p) {
   // --- Rim joist ---
   // Rim joist sits under the deck. Back face at totalRun, front face at totalRun - 1.5.
   const rimX = p.totalRun - 1.5;  // rim joist front face
-  const rimMesh = makeMesh(box(1.5, compWidth, p.rimJoistWidth), COLORS.rimJoist);
+  const rimMesh = makeMesh(box(1.5, compWidth, p.rimJoistWidth), COLORS.rimJoist, 1, 'rimJoist');
   rimMesh.position.set(rimX + 0.75, compCenterY, p.totalHeight - p.deckingThickness - p.rimJoistWidth / 2);
   meshes.rimJoist = rimMesh;
 
   // --- Deck surface ---
   // Deck boards are flush with the rim joist front face, extending back over the rim joist
-  const deckMesh = makeMesh(box(24, p.stairWidth + 12, p.deckingThickness), COLORS.decking);
+  const deckMesh = makeMesh(box(24, p.stairWidth + 12, p.deckingThickness), COLORS.decking, 1, 'deckSurface');
   deckMesh.position.set(rimX + 12, p.stairWidth / 2, p.totalHeight - p.deckingThickness / 2);
   meshes.deckSurface = deckMesh;
 
@@ -517,11 +559,11 @@ export function buildScene(p) {
   const topPostsGroup = new THREE.Group();
   const topPostZ = p.totalHeight;  // deck surface = top of decking
 
-  const tlPost = makeMesh(box(ps, ps, postH), COLORS.post);
+  const tlPost = makeMesh(box(ps, ps, postH), COLORS.post, 1, 'posts');
   tlPost.position.set(rimX + 1.5 + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
   topPostsGroup.add(tlPost);
 
-  const trPost = makeMesh(box(ps, ps, postH), COLORS.post);
+  const trPost = makeMesh(box(ps, ps, postH), COLORS.post, 1, 'posts');
   trPost.position.set(rimX + 1.5 + ps / 2, sillY + p.topPostSpacing + ps / 2, topPostZ + postH / 2);
   topPostsGroup.add(trPost);
 
@@ -602,8 +644,9 @@ export function buildScene(p) {
       shape.lineTo(xRight, zTopR);  // top-right (plumb cut)
       shape.lineTo(xLeft, zTopL);   // top-left (plumb cut)
       const geo = new THREE.ExtrudeGeometry(shape, { depth: rNarrow, bevelEnabled: false });
+      scaleUVs(geo, 12, Math.atan(railSlope));
       geo.rotateX(Math.PI / 2);
-      const mesh = makeMesh(geo, COLORS.railing);
+      const mesh = makeMesh(geo, COLORS.railing, 1, 'railing');
       mesh.position.set(0, yCenter + rNarrow / 2, 0);
       return mesh;
     }
@@ -654,8 +697,9 @@ export function buildScene(p) {
         shape.lineTo(vx + halfW, zTopR);
         shape.lineTo(vx - halfW, zTopL);
         const geo = new THREE.ExtrudeGeometry(shape, { depth: rNarrow, bevelEnabled: false });
+        scaleUVs(geo, 12, Math.PI / 2);
         geo.rotateX(Math.PI / 2);
-        const mesh = makeMesh(geo, COLORS.railing);
+        const mesh = makeMesh(geo, COLORS.railing, 1, 'railing');
         mesh.position.set(0, yCenter + rNarrow / 2, 0);
         return mesh;
       }

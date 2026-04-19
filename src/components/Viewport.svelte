@@ -9,6 +9,7 @@
   import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
   import { N8AOPass } from 'n8ao';
   import { buildScene } from '../lib/scene-builder.js';
+  import { loadCamera, saveCamera } from '../lib/persistence.js';
 
   let { sceneParams = null, visibility = {}, viewMode = 'side', faceMode = 'color', aoMode = 'off', aoParams = {} } = $props();
 
@@ -27,19 +28,27 @@
     renderer = new THREE.WebGLRenderer({ antialias: true, canvas, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0xd4e6f1);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
 
     scene = new THREE.Scene();
     sceneGroup = new THREE.Group();
     sceneGroup.scale.setScalar(IN_TO_M);
     scene.add(sceneGroup);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-    dir.position.set(2, 3, 2); // ~80", 120", 80" in inches
-    scene.add(dir);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.3);
-    fill.position.set(-2, 2, -2);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    // Key light — distant sun-like directional light
+    const sun = new THREE.DirectionalLight(0xfff5e6, 1.0);
+    sun.position.set(5, 8, 10); // high and to the side
+    scene.add(sun);
+    // Fill light — softer, opposite side
+    const fill = new THREE.DirectionalLight(0xe6f0ff, 0.4);
+    fill.position.set(-3, -2, 4);
     scene.add(fill);
+    // Rim/back light for edge definition
+    const rim = new THREE.DirectionalLight(0xffffff, 0.2);
+    rim.position.set(-2, 5, -3);
+    scene.add(rim);
 
     camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.01, 50);
     camera.up.set(0, 0, 1);
@@ -47,7 +56,23 @@
 
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
-    controls.addEventListener('change', requestRender);
+    controls.addEventListener('change', () => {
+      requestRender();
+      // Persist camera state
+      saveCamera({
+        position: camera.position.toArray(),
+        target: controls.target.toArray(),
+        viewMode,
+      });
+    });
+
+    // Restore saved camera if same view mode
+    const savedCam = loadCamera();
+    if (savedCam && savedCam.viewMode === viewMode) {
+      camera.position.fromArray(savedCam.position);
+      controls.target.fromArray(savedCam.target);
+      controls.update();
+    }
 
     setView(viewMode);
   }
