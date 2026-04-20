@@ -74,34 +74,65 @@
   function printCutGuide() {
     if (!svgEl) return;
 
-    // Get the inner <g> and strip its interactive transform
     const gEl = svgEl.querySelector('g');
     if (!gEl) return;
     const gClone = gEl.cloneNode(true);
     gClone.removeAttribute('transform');
 
-    // Content bounds in raw coordinates (no scale/translate)
     const margin = 8;
     const minX = layout.minBx - margin;
-    const minY = layout.minBy - margin;
     const maxX = layout.maxBx + margin;
-    let maxY = layout.maxBy + margin;
-    if (railLayout) {
-      maxY = layout.maxBy + 10 + 4 * (3.5 + 14) + margin;
-    }
     const fullW = maxX - minX;
-    const fullH = maxY - minY;
 
-    // A4 landscape in mm → use unitless coords, let viewBox handle scaling
-    const pageW = 277;  // ~mm usable in A4 landscape with 15mm margins
-    const pageH = 180;
+    // Build list of content blocks with their Y ranges
+    const blocks = [];
 
-    // Scale content to fit page width
+    // Stringer block: from top of content to below the stringer
+    blocks.push({
+      label: 'Stringer (2x12)',
+      yMin: layout.minBy - margin,
+      yMax: layout.maxBy + 5,
+    });
+
+    // Rail blocks
+    if (railLayout) {
+      const rails = [railLayout.topRail, railLayout.botRail, railLayout.vert1, railLayout.vert2];
+      rails.forEach((rail, ri) => {
+        const railOy = layout.maxBy + 10 + ri * (rail.boardW + 14);
+        blocks.push({
+          label: rail.label,
+          yMin: railOy - 3,
+          yMax: railOy + rail.boardW + 10,
+        });
+      });
+    }
+
+    // A4 landscape usable area
+    const pageW = 277; // mm
+    const pageH = 180; // mm
     const scale = pageW / fullW;
-    const pageContentH = pageH / scale; // how much content height fits per page
-    const pagesNeeded = Math.ceil(fullH / pageContentH);
+    const pageContentH = pageH / scale;
+
+    // Pack blocks onto pages without splitting
+    const pages = [];
+    let currentPage = { blocks: [], yMin: blocks[0].yMin, yMax: blocks[0].yMin };
+
+    for (const block of blocks) {
+      const blockH = block.yMax - block.yMin;
+      const pageUsed = currentPage.yMax - currentPage.yMin;
+
+      if (pageUsed + blockH > pageContentH && currentPage.blocks.length > 0) {
+        // Start new page
+        pages.push(currentPage);
+        currentPage = { blocks: [], yMin: block.yMin, yMax: block.yMin };
+      }
+      currentPage.blocks.push(block);
+      currentPage.yMax = block.yMax;
+    }
+    if (currentPage.blocks.length > 0) pages.push(currentPage);
 
     const gHTML = gClone.outerHTML;
+    const totalPages = pages.length;
 
     let html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -112,22 +143,22 @@
   .page { page-break-after: always; }
   .page:last-child { page-break-after: avoid; }
   .page-header { font-size: 9pt; color: #666; margin-bottom: 3mm; }
-  svg { display: block; width: ${pageW}mm; height: ${pageH}mm; }
+  svg { display: block; width: ${pageW}mm; }
 </style>
 </head><body>`;
 
-    for (let p = 0; p < pagesNeeded; p++) {
-      const vy = minY + p * pageContentH;
-      const vh = Math.min(pageContentH, fullH - p * pageContentH);
-      const viewBox = `${minX} ${vy} ${fullW} ${pageContentH}`;
+    pages.forEach((page, pi) => {
+      const vH = page.yMax - page.yMin;
+      const svgH = vH * scale;
+      const viewBox = `${minX} ${page.yMin} ${fullW} ${vH}`;
 
       html += `<div class="page">
-  <div class="page-header">Stairmaster Cut Guide — Page ${p + 1} of ${pagesNeeded}</div>
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">
+  <div class="page-header">Stairmaster Cut Guide — Page ${pi + 1} of ${totalPages}</div>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" style="height:${svgH}mm">
     ${gHTML}
   </svg>
 </div>`;
-    }
+    });
 
     html += '</body></html>';
 
