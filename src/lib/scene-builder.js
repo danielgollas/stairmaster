@@ -796,25 +796,36 @@ export function buildScene(p) {
       function botEdge(x) { return botRailCenter(x) + halfPerp; }
       function topEdge(x) { return topRailCenter(x) - halfPerp; }
 
-      const wireMat = new THREE.LineBasicMaterial({ color: COLORS.hogPanel });
+      const wireR = 0.0625; // 1/8" diameter = 1/16" radius
+      const wireMat = new THREE.MeshPhongMaterial({ color: COLORS.hogPanel });
+
+      function addWire(x1, y1, z1, x2, y2, z2) {
+        const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+        const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (len < 0.1) return;
+        const geo = new THREE.CylinderGeometry(wireR, wireR, len, 4, 1);
+        geo.rotateX(Math.PI / 2); // align along Z
+        const mesh = new THREE.Mesh(geo, wireMat);
+        mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
+        // Orient cylinder to point from p1 to p2
+        const dir = new THREE.Vector3(dx, dy, dz).normalize();
+        const up = new THREE.Vector3(0, 0, 1);
+        const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+        mesh.setRotationFromQuaternion(quat);
+        hogGroup.add(mesh);
+      }
 
       // Horizontal wires (z = constant, clipped to frame x range at that z)
       const zLow = botEdge(fxMin);
       const zHigh = topEdge(fxMax);
       const zFirst = Math.ceil(zLow / gridSp) * gridSp;
       for (let z = zFirst; z <= zHigh; z += gridSp) {
-        // Solve for x where z = botEdge(x) and z = topEdge(x)
-        // botEdge(x) = maxNoseZ + 2*halfPerp + (x - bpInnerX) * slope = z
         const xFromBot = (z - maxNoseZ - 2 * halfPerp) / slope + bpInnerX;
-        // topEdge(x) = bpTopZ + (x - bpInnerX) * slope - 2*halfPerp = z
         const xFromTop = (z - bpTopZ + 2 * halfPerp) / slope + bpInnerX;
         const xa = Math.max(fxMin, xFromBot);
         const xb = Math.min(fxMax, xFromTop);
         if (xa < xb) {
-          const g = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(xa, wireY, z), new THREE.Vector3(xb, wireY, z)
-          ]);
-          hogGroup.add(new THREE.Line(g, wireMat));
+          addWire(xa, wireY, z, xb, wireY, z);
         }
       }
 
@@ -824,10 +835,7 @@ export function buildScene(p) {
         const zBot = botEdge(x);
         const zTop = topEdge(x);
         if (zBot < zTop) {
-          const g = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(x, wireY, zBot), new THREE.Vector3(x, wireY, zTop)
-          ]);
-          hogGroup.add(new THREE.Line(g, wireMat));
+          addWire(x, wireY, zBot, x, wireY, zTop);
         }
       }
     }
