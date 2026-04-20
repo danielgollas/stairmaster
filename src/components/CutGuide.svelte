@@ -74,66 +74,67 @@
   function printCutGuide() {
     if (!svgEl) return;
 
-    // Clone the SVG content with full extent (no pan/zoom clipping)
-    const svgClone = svgEl.cloneNode(true);
+    // Get the inner <g> and strip its interactive transform
+    const gEl = svgEl.querySelector('g');
+    if (!gEl) return;
+    const gClone = gEl.cloneNode(true);
+    gClone.removeAttribute('transform');
 
-    // Compute full content bounds
-    const margin = 15;
-    let contentMaxY = layout.maxBy;
+    // Content bounds in raw coordinates (no scale/translate)
+    const margin = 8;
+    const minX = layout.minBx - margin;
+    const minY = layout.minBy - margin;
+    const maxX = layout.maxBx + margin;
+    let maxY = layout.maxBy + margin;
     if (railLayout) {
-      contentMaxY = layout.maxBy + 10 + 4 * (3.5 + 14);
+      maxY = layout.maxBy + 10 + 4 * (3.5 + 14) + margin;
     }
-    const fullW = layout.maxBx - layout.minBx + margin * 2;
-    const fullH = contentMaxY - layout.minBy + margin * 2;
+    const fullW = maxX - minX;
+    const fullH = maxY - minY;
 
-    // A4 in points: 595 x 842 (landscape: 842 x 595)
-    // Use landscape for wider boards
-    const pageW = 842;
-    const pageH = 595;
-    const pagePadding = 40;
-    const usableW = pageW - pagePadding * 2;
-    const usableH = pageH - pagePadding * 2;
+    // A4 landscape in mm → use unitless coords, let viewBox handle scaling
+    const pageW = 277;  // ~mm usable in A4 landscape with 15mm margins
+    const pageH = 180;
 
-    // Scale to fit width
-    const printScale = usableW / fullW;
-    const scaledH = fullH * printScale;
-    const pagesNeeded = Math.ceil(scaledH / usableH);
+    // Scale content to fit page width
+    const scale = pageW / fullW;
+    const pageContentH = pageH / scale; // how much content height fits per page
+    const pagesNeeded = Math.ceil(fullH / pageContentH);
 
-    // Build print HTML
+    const gHTML = gClone.outerHTML;
+
     let html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <title>Stairmaster Cut Guide</title>
 <style>
   @page { size: A4 landscape; margin: 15mm; }
   body { margin: 0; font-family: sans-serif; }
-  .page { page-break-after: always; position: relative; width: ${usableW}px; height: ${usableH}px; overflow: hidden; }
+  .page { page-break-after: always; }
   .page:last-child { page-break-after: avoid; }
-  .page-header { font-size: 10px; color: #666; margin-bottom: 5px; }
-  svg { display: block; }
+  .page-header { font-size: 9pt; color: #666; margin-bottom: 3mm; }
+  svg { display: block; width: ${pageW}mm; height: ${pageH}mm; }
 </style>
 </head><body>`;
 
     for (let p = 0; p < pagesNeeded; p++) {
-      const yOffset = p * usableH / printScale;
-      const viewBox = `${layout.minBx - margin} ${layout.minBy - margin + yOffset} ${fullW} ${usableH / printScale}`;
+      const vy = minY + p * pageContentH;
+      const vh = Math.min(pageContentH, fullH - p * pageContentH);
+      const viewBox = `${minX} ${vy} ${fullW} ${pageContentH}`;
 
       html += `<div class="page">
   <div class="page-header">Stairmaster Cut Guide — Page ${p + 1} of ${pagesNeeded}</div>
-  <svg xmlns="http://www.w3.org/2000/svg" width="${usableW}" height="${usableH}" viewBox="${viewBox}">
-    ${svgClone.querySelector('g').outerHTML}
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">
+    ${gHTML}
   </svg>
 </div>`;
     }
 
     html += '</body></html>';
 
-    // Open in new window and trigger print
     const win = window.open('', '_blank');
     win.document.write(html);
     win.document.close();
-    win.onload = () => {
-      win.print();
-    };
+    win.onload = () => win.print();
   }
 
   // Compute the stringer layout on a flat board
