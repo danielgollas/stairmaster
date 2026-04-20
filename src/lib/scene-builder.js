@@ -786,13 +786,16 @@ export function buildScene(p) {
         railGroup.add(makeVertical(v2x, yc));
       }
 
-      // --- Hog panel: 1/8" wire, 3.5" grid, horizontal+vertical, clipped to frame ---
-      const gridSp = 3.5;
+      // --- Hog panel: 1/8" wire, 4" grid, horizontal+vertical, clipped to frame ---
+      const gridSp = 4;
       const wireY = yc; // post center
 
       // Inner frame edges (inside vertical members)
       const fxMin = v1x + rNarrow / 2;
       const fxMax = v2x - rNarrow / 2;
+      // botEdge(x) = top of bottom rail at x
+      // topEdge(x) = bottom of top rail at x
+      // Both increase with x (positive slope)
       function botEdge(x) { return botRailCenter(x) + halfPerp; }
       function topEdge(x) { return topRailCenter(x) - halfPerp; }
 
@@ -804,10 +807,9 @@ export function buildScene(p) {
         const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (len < 0.1) return;
         const geo = new THREE.CylinderGeometry(wireR, wireR, len, 4, 1);
-        geo.rotateX(Math.PI / 2); // align along Z
+        geo.rotateX(Math.PI / 2);
         const mesh = new THREE.Mesh(geo, wireMat);
         mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
-        // Orient cylinder to point from p1 to p2
         const dir = new THREE.Vector3(dx, dy, dz).normalize();
         const up = new THREE.Vector3(0, 0, 1);
         const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
@@ -816,14 +818,29 @@ export function buildScene(p) {
       }
 
       // Horizontal wires (z = constant, clipped to frame x range at that z)
-      const zLow = botEdge(fxMin);
-      const zHigh = topEdge(fxMax);
+      // Wire at height z is valid where: botEdge(x) <= z AND topEdge(x) >= z
+      // botEdge(x) <= z  →  x <= (z - botEdge_at_0) / slope  →  x <= xBotLimit
+      // topEdge(x) >= z  →  x <= (z - topEdge_at_0) / slope  →  x <= xTopLimit (if slope > 0... wait)
+      // Actually: topEdge(x) >= z means the top rail bottom is above z.
+      // topEdge increases with x (slope>0), so topEdge(x) >= z for x >= xTopLimit
+      // botEdge(x) <= z means bottom rail top is below z.
+      // botEdge increases with x, so botEdge(x) <= z for x <= xBotLimit
+      // Valid range: x >= xTopLimit AND x <= xBotLimit
+      const zLow = Math.min(botEdge(fxMin), botEdge(fxMax));
+      const zHigh = Math.max(topEdge(fxMin), topEdge(fxMax));
       const zFirst = Math.ceil(zLow / gridSp) * gridSp;
       for (let z = zFirst; z <= zHigh; z += gridSp) {
-        const xFromBot = (z - maxNoseZ - 2 * halfPerp) / slope + bpInnerX;
-        const xFromTop = (z - bpTopZ + 2 * halfPerp) / slope + bpInnerX;
-        const xa = Math.max(fxMin, xFromBot);
-        const xb = Math.min(fxMax, xFromTop);
+        // Where does botEdge(x) = z? x = (z - botConst) / slope
+        // botEdge(x) = maxNoseZ + 2*halfPerp + (x - bpInnerX) * slope
+        const xBotCross = (z - maxNoseZ - 2 * halfPerp) / slope + bpInnerX;
+        // Where does topEdge(x) = z? x = (z - topConst) / slope
+        // topEdge(x) = bpTopZ - 2*halfPerp + (x - bpInnerX) * slope
+        const xTopCross = (z - bpTopZ + 2 * halfPerp) / slope + bpInnerX;
+
+        // Valid: botEdge(x) <= z → x <= xBotCross (rail hasn't risen above z yet)
+        //        topEdge(x) >= z → x >= xTopCross (rail bottom is above z)
+        const xa = Math.max(fxMin, xTopCross);
+        const xb = Math.min(fxMax, xBotCross);
         if (xa < xb) {
           addWire(xa, wireY, z, xb, wireY, z);
         }
