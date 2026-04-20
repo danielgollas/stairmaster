@@ -821,159 +821,102 @@
             </text>
 
             <!-- Board rectangle -->
-            <rect
-              x={rail.boardLeft}
-              y={railOy}
-              width={rail.boardRight - rail.boardLeft}
-              height={rail.boardW}
-              fill="#f5e6c8"
-              stroke="#a0784c"
-              stroke-width={0.5 / scale}
-            />
+            {@const bL = rail.boardLeft}
+            {@const bR = rail.boardRight}
+            {@const bT = railOy}
+            {@const bB = railOy + rail.boardW}
+            {@const boardLen = bR - bL}
 
-            <!-- Cut shape -->
+            <rect x={bL} y={bT} width={boardLen} height={rail.boardW}
+              fill="#f5e6c8" stroke="#a0784c" stroke-width={0.3 / scale} />
+
+            <!-- Full board length dimension (green, below board) -->
+            {@const blY = bB + 2.5}
+            <line x1={bL} y1={blY} x2={bR} y2={blY} stroke="#27ae60" stroke-width={0.12} />
+            <line x1={bL} y1={blY-0.4} x2={bL} y2={blY+0.4} stroke="#27ae60" stroke-width={0.12} />
+            <line x1={bR} y1={blY-0.4} x2={bR} y2={blY+0.4} stroke="#27ae60" stroke-width={0.12} />
+            <line x1={bL} y1={bB} x2={bL} y2={blY} stroke="#27ae60" stroke-width={0.04} opacity={0.3} />
+            <line x1={bR} y1={bB} x2={bR} y2={blY} stroke="#27ae60" stroke-width={0.04} opacity={0.3} />
+            <text x={(bL+bR)/2} y={blY+0.9} text-anchor="middle" font-size={0.55} fill="#27ae60" font-weight="bold">
+              {fmtFrac(boardLen)} board length
+            </text>
+
+            <!-- Cut shape (dashed red) -->
             <path
               d={'M ' + rail.pts.map(p => `${p.bx.toFixed(2)},${(p.by + railOy).toFixed(2)}`).join(' L ') + ' Z'}
-              fill="rgba(180, 120, 40, 0.3)"
+              fill="rgba(180, 120, 40, 0.15)"
               stroke="#c0392b"
-              stroke-width={0.8 / scale}
-              stroke-dasharray="{2 / scale},{1 / scale}"
+              stroke-width={0.6 / scale}
+              stroke-dasharray="{1.5 / scale},{0.8 / scale}"
             />
 
-            <!-- Labeled dots at each cut vertex -->
+            <!-- Labeled dots at cut vertices -->
             {#each rail.cutMarks as pt, pi}
               {@const letter = String.fromCharCode(65 + pi)}
               {@const py = pt.by + railOy}
-              <circle cx={pt.bx} cy={py} r={0.3} fill="#c0392b" />
-              <text x={pt.bx + 0.5} y={py - 0.4} text-anchor="start" font-size={0.55} fill="#c0392b" font-weight="bold">
+              <circle cx={pt.bx} cy={py} r={0.25} fill="#c0392b" />
+              <text x={pt.bx + (pt.bx < (bL+bR)/2 ? -0.6 : 0.5)} y={py + (pt.by < rail.boardW/2 ? -0.4 : 0.7)}
+                text-anchor={pt.bx < (bL+bR)/2 ? 'end' : 'start'} font-size={0.5} fill="#c0392b" font-weight="bold">
                 {letter}
               </text>
             {/each}
 
-            <!-- Board corner dots -->
-            {#each [[rail.boardLeft, railOy], [rail.boardRight, railOy], [rail.boardRight, railOy + rail.boardW], [rail.boardLeft, railOy + rail.boardW]] as [cx, cy], ci}
-              <circle {cx} {cy} r={0.25} fill="#333" />
-            {/each}
-
-            <!-- Perpendicular lines from each cut vertex to nearest edge -->
+            <!-- Perpendicular distances from each vertex to nearest board edge -->
             {#each rail.cutMarks as pt, pi}
               {@const py = pt.by + railOy}
               {@const dTop = pt.by}
               {@const dBot = rail.boardW - pt.by}
-              {@const dLeft = pt.bx - rail.boardLeft}
-              {@const dRight = rail.boardRight - pt.bx}
-              {@const minD = Math.min(dTop, dBot, dLeft, dRight)}
-              {#if minD === dTop && dTop > 0.2}
-                <line x1={pt.bx} y1={py} x2={pt.bx} y2={railOy}
-                  stroke="#2980b9" stroke-width={0.06} stroke-dasharray="0.3,0.2" opacity={0.6} />
-                <text x={pt.bx + 0.3} y={(py + railOy) / 2} text-anchor="start" font-size={0.4} fill="#2980b9"
-                  transform="rotate(-90, {pt.bx + 0.3}, {(py + railOy) / 2})">
-                  {fmtFrac(minD)}
+              {@const dLeft = pt.bx - bL}
+              {@const dRight = bR - pt.bx}
+              <!-- Vertical perp to top or bottom edge -->
+              {#if dTop > 0.2 && dTop <= dBot}
+                <line x1={pt.bx} y1={py} x2={pt.bx} y2={bT}
+                  stroke="#2980b9" stroke-width={0.05} stroke-dasharray="0.2,0.15" opacity={0.5} />
+                <text x={pt.bx - 0.2} y={(py + bT) / 2} text-anchor="end" font-size={0.35} fill="#2980b9">
+                  {fmtFrac(dTop)}
                 </text>
-              {:else if minD === dBot && dBot > 0.2}
-                <line x1={pt.bx} y1={py} x2={pt.bx} y2={railOy + rail.boardW}
-                  stroke="#c0392b" stroke-width={0.06} stroke-dasharray="0.3,0.2" opacity={0.6} />
-                <text x={pt.bx + 0.3} y={(py + railOy + rail.boardW) / 2} text-anchor="start" font-size={0.4} fill="#c0392b"
-                  transform="rotate(-90, {pt.bx + 0.3}, {(py + railOy + rail.boardW) / 2})">
-                  {fmtFrac(minD)}
+              {:else if dBot > 0.2}
+                <line x1={pt.bx} y1={py} x2={pt.bx} y2={bB}
+                  stroke="#2980b9" stroke-width={0.05} stroke-dasharray="0.2,0.15" opacity={0.5} />
+                <text x={pt.bx - 0.2} y={(py + bB) / 2} text-anchor="end" font-size={0.35} fill="#2980b9">
+                  {fmtFrac(dBot)}
                 </text>
-              {:else if minD === dLeft && dLeft > 0.2}
-                <line x1={pt.bx} y1={py} x2={rail.boardLeft} y2={py}
-                  stroke="#27ae60" stroke-width={0.06} stroke-dasharray="0.3,0.2" opacity={0.6} />
-                <text x={(pt.bx + rail.boardLeft) / 2} y={py - 0.3} text-anchor="middle" font-size={0.4} fill="#27ae60">
-                  {fmtFrac(minD)}
+              {/if}
+              <!-- Horizontal perp to left or right edge -->
+              {#if dLeft > 0.2 && dLeft <= dRight}
+                <line x1={pt.bx} y1={py} x2={bL} y2={py}
+                  stroke="#8e44ad" stroke-width={0.05} stroke-dasharray="0.2,0.15" opacity={0.5} />
+                <text x={(pt.bx + bL) / 2} y={py + 0.5} text-anchor="middle" font-size={0.35} fill="#8e44ad">
+                  {fmtFrac(dLeft)}
                 </text>
-              {:else if minD === dRight && dRight > 0.2}
-                <line x1={pt.bx} y1={py} x2={rail.boardRight} y2={py}
-                  stroke="#8e44ad" stroke-width={0.06} stroke-dasharray="0.3,0.2" opacity={0.6} />
-                <text x={(pt.bx + rail.boardRight) / 2} y={py - 0.3} text-anchor="middle" font-size={0.4} fill="#8e44ad">
-                  {fmtFrac(minD)}
+              {:else if dRight > 0.2}
+                <line x1={pt.bx} y1={py} x2={bR} y2={py}
+                  stroke="#8e44ad" stroke-width={0.05} stroke-dasharray="0.2,0.15" opacity={0.5} />
+                <text x={(pt.bx + bR) / 2} y={py + 0.5} text-anchor="middle" font-size={0.35} fill="#8e44ad">
+                  {fmtFrac(dRight)}
                 </text>
               {/if}
             {/each}
 
-            <!-- Edge measurements between projected points on top and bottom edges -->
-            {@const topProj = (() => {
-              const s = new Set([rail.boardLeft, rail.boardRight]);
-              for (const pt of rail.cutMarks) {
-                if (pt.by <= rail.boardW / 2) s.add(Math.round(pt.bx * 100) / 100);
-              }
-              return [...s].sort((a,b) => a-b);
-            })()}
-            {@const botProj = (() => {
-              const s = new Set([rail.boardLeft, rail.boardRight]);
-              for (const pt of rail.cutMarks) {
-                if (pt.by > rail.boardW / 2) s.add(Math.round(pt.bx * 100) / 100);
-              }
-              return [...s].sort((a,b) => a-b);
-            })()}
-
-            <!-- Top edge dims -->
-            {#each topProj as bx, i}
-              {#if i > 0}
-                {@const prev = topProj[i-1]}
-                {@const dist = bx - prev}
-                {#if dist > 0.3}
-                  {@const ey = railOy - 1}
-                  <line x1={prev} y1={ey} x2={bx} y2={ey} stroke="#2980b9" stroke-width={0.08} />
-                  <line x1={prev} y1={ey-0.3} x2={prev} y2={ey+0.3} stroke="#2980b9" stroke-width={0.08} />
-                  <line x1={bx} y1={ey-0.3} x2={bx} y2={ey+0.3} stroke="#2980b9" stroke-width={0.08} />
-                  <text x={(prev+bx)/2} y={ey-0.4} text-anchor="middle" font-size={0.45} fill="#2980b9">
-                    {fmtFrac(dist)}
-                  </text>
-                {/if}
-              {/if}
-            {/each}
-
-            <!-- Bottom edge dims -->
-            {#each botProj as bx, i}
-              {#if i > 0}
-                {@const prev = botProj[i-1]}
-                {@const dist = bx - prev}
-                {#if dist > 0.3}
-                  {@const ey = railOy + rail.boardW + 1}
-                  <line x1={prev} y1={ey} x2={bx} y2={ey} stroke="#c0392b" stroke-width={0.08} />
-                  <line x1={prev} y1={ey-0.3} x2={prev} y2={ey+0.3} stroke="#c0392b" stroke-width={0.08} />
-                  <line x1={bx} y1={ey-0.3} x2={bx} y2={ey+0.3} stroke="#c0392b" stroke-width={0.08} />
-                  <text x={(prev+bx)/2} y={ey+0.8} text-anchor="middle" font-size={0.45} fill="#c0392b">
-                    {fmtFrac(dist)}
-                  </text>
-                {/if}
-              {/if}
-            {/each}
-
-            <!-- Dimension lines between consecutive cut vertices -->
-            {#each rail.edges as edge, ei}
+            <!-- Cut edge lengths (inside the cut shape, not overlapping board edges) -->
+            {#each rail.edges as edge}
               {@const p1 = rail.pts[edge.from]}
               {@const p2 = rail.pts[edge.to]}
-              {@const dx = p2.bx - p1.bx}
-              {@const dy = p2.by - p1.by}
-              {@const len = Math.sqrt(dx*dx + dy*dy)}
-              {#if len > 0.5}
-                {@const ang = Math.atan2(dy, dx) * 180 / Math.PI}
-                {@const nx = -dy/len}
-                {@const ny = dx/len}
-                {@const doff = 1.0}
-                {@const d1x = p1.bx + nx*doff}
-                {@const d1y = p1.by + railOy + ny*doff}
-                {@const d2x = p2.bx + nx*doff}
-                {@const d2y = p2.by + railOy + ny*doff}
-                {@const mx = (d1x+d2x)/2}
-                {@const my = (d1y+d2y)/2}
-                {@const textAngle = ang > 90 || ang < -90 ? ang + 180 : ang}
-                <line x1={p1.bx} y1={p1.by + railOy} x2={d1x} y2={d1y} stroke="#666" stroke-width={0.06} opacity={0.4} />
-                <line x1={p2.bx} y1={p2.by + railOy} x2={d2x} y2={d2y} stroke="#666" stroke-width={0.06} opacity={0.4} />
-                <line x1={d1x} y1={d1y} x2={d2x} y2={d2y} stroke="#333" stroke-width={0.08} />
-                <text x={mx} y={my - 0.3} text-anchor="middle" font-size={0.45} fill="#333"
-                  transform="rotate({textAngle}, {mx}, {my - 0.3})">
-                  {fmtFrac(edge.len)} {edge.label}
+              {@const emx = (p1.bx + p2.bx) / 2}
+              {@const emy = (p1.by + p2.by) / 2 + railOy}
+              {@const ang = Math.atan2(p2.by - p1.by, p2.bx - p1.bx) * 180 / Math.PI}
+              {@const textAng = ang > 90 || ang < -90 ? ang + 180 : ang}
+              {#if edge.len > 0.5}
+                <text x={emx} y={emy} text-anchor="middle" font-size={0.4} fill="#666"
+                  transform="rotate({textAng}, {emx}, {emy})">
+                  {fmtFrac(edge.len)}
                 </text>
               {/if}
             {/each}
 
             <!-- Board width label -->
-            <text x={rail.boardLeft - 2.5} y={railOy + rail.boardW / 2} text-anchor="middle" font-size={0.8} fill="#333"
-              transform="rotate(-90, {rail.boardLeft - 2.5}, {railOy + rail.boardW / 2})">
+            <text x={bL - 1.5} y={bT + rail.boardW / 2} text-anchor="middle" font-size={0.7} fill="#333"
+              transform="rotate(-90, {bL - 1.5}, {bT + rail.boardW / 2})">
               {fmtFrac(rail.boardW)} (2x4)
             </text>
           {/each}
