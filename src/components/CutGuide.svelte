@@ -657,7 +657,7 @@
           <!-- Board width label -->
           <text x={L.boardLeft - 4} y={L.sw / 2} text-anchor="middle" font-size={1.2} fill="#333"
             transform="rotate(-90, {L.boardLeft - 4}, {L.sw / 2})">
-            {L.sw}" (2x12)
+            {fmtFrac(L.sw)} (2x12)
           </text>
         {/if}
 
@@ -974,7 +974,7 @@
             <!-- Board width label -->
             <text x={rail.boardLeft - 2.5} y={railOy + rail.boardW / 2} text-anchor="middle" font-size={0.8} fill="#333"
               transform="rotate(-90, {rail.boardLeft - 2.5}, {railOy + rail.boardW / 2})">
-              {rail.boardW}" (2x4)
+              {fmtFrac(rail.boardW)} (2x4)
             </text>
           {/each}
         {/if}
