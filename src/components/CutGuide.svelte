@@ -113,23 +113,14 @@
     const scale = pageW / fullW;
     const pageContentH = pageH / scale;
 
-    // Pack blocks onto pages without splitting
+    // Page 1: stringer, Page 2: all rails
     const pages = [];
-    let currentPage = { blocks: [], yMin: blocks[0].yMin, yMax: blocks[0].yMin };
-
-    for (const block of blocks) {
-      const blockH = block.yMax - block.yMin;
-      const pageUsed = currentPage.yMax - currentPage.yMin;
-
-      if (pageUsed + blockH > pageContentH && currentPage.blocks.length > 0) {
-        // Start new page
-        pages.push(currentPage);
-        currentPage = { blocks: [], yMin: block.yMin, yMax: block.yMin };
-      }
-      currentPage.blocks.push(block);
-      currentPage.yMax = block.yMax;
+    if (blocks.length > 0) {
+      pages.push({ yMin: blocks[0].yMin, yMax: blocks[0].yMax });
     }
-    if (currentPage.blocks.length > 0) pages.push(currentPage);
+    if (blocks.length > 1) {
+      pages.push({ yMin: blocks[1].yMin, yMax: blocks[blocks.length - 1].yMax });
+    }
 
     const gHTML = gClone.outerHTML;
     const totalPages = pages.length;
