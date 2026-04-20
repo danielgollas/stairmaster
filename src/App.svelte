@@ -177,6 +177,8 @@
   // .scad source for download (visibility-filtered)
   let downloadScadSource = $derived(generateScad(sceneParams, visibility));
 
+  let resetCamera = $state(0);
+
   function downloadScad() {
     const blob = new Blob([downloadScadSource], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -210,6 +212,7 @@
         <button class:active={viewMode === 'front'} onclick={() => viewMode = 'front'}>Front</button>
         <button class:active={viewMode === 'cut'} onclick={() => viewMode = 'cut'}>Cut Guide</button>
       </div>
+      <button class="toolbar-btn" onclick={() => resetCamera++}>Reset View</button>
       <div class="downloads">
         <button onclick={downloadScad}>⬇ .scad</button>
       </div>
@@ -217,7 +220,7 @@
     {#if viewMode === 'cut'}
       <CutGuide {sceneParams} />
     {:else}
-      <Viewport {sceneParams} {visibility} {viewMode} {faceMode} {aoMode} aoParams={aoParams[aoMode] || {}} />
+      <Viewport {sceneParams} {visibility} {viewMode} {faceMode} {aoMode} aoParams={aoParams[aoMode] || {}} {resetCamera} />
     {/if}
   </div>
 
@@ -290,7 +293,7 @@
     display: flex;
     gap: 4px;
   }
-  .view-toggle button, .downloads button {
+  .toolbar-btn, .view-toggle button, .downloads button {
     padding: 4px 12px;
     background: #334155;
     border: none;

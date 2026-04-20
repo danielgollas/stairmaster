@@ -11,7 +11,7 @@
   import { buildScene } from '../lib/scene-builder.js';
   import { loadCamera, saveCamera } from '../lib/persistence.js';
 
-  let { sceneParams = null, visibility = {}, viewMode = 'side', faceMode = 'color', aoMode = 'off', aoParams = {} } = $props();
+  let { sceneParams = null, visibility = {}, viewMode = 'side', faceMode = 'color', aoMode = 'off', aoParams = {}, resetCamera = 0 } = $props();
 
   let canvas;
   let renderer, scene, camera, controls;
@@ -180,6 +180,11 @@
     controls.enableDamping = true;
     controls.target.copy(defaultTarget);
 
+    // Disable rotation in orthographic views — pan and zoom only
+    if (mode !== '3d') {
+      controls.enableRotate = false;
+    }
+
     if (restored && savedCam.target) {
       const tDist = Math.sqrt(savedCam.target[0] ** 2 + savedCam.target[1] ** 2 + savedCam.target[2] ** 2);
       if (tDist < maxDist) {
@@ -341,6 +346,17 @@
   $effect(() => {
     if (renderer && canvas && viewMode !== lastViewMode) {
       lastViewMode = viewMode;
+      setView(viewMode);
+    }
+  });
+
+  let lastReset = 0;
+  $effect(() => {
+    if (renderer && canvas && resetCamera > lastReset) {
+      lastReset = resetCamera;
+      // Clear saved camera for this view mode and force default
+      saveCamera(viewMode, null);
+      lastViewMode = null; // force setView to re-run
       setView(viewMode);
     }
   });
