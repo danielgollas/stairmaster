@@ -8,6 +8,7 @@
   import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
   import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
   import { N8AOPass } from 'n8ao';
+  import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
   import { buildScene } from '../lib/scene-builder.js';
   import { loadCamera, saveCamera } from '../lib/persistence.js';
 
@@ -133,6 +134,10 @@
       const outputPass = new OutputPass();
       composer.addPass(outputPass);
     }
+
+    // SMAA anti-aliasing as final pass (MSAA doesn't work with EffectComposer)
+    const smaaPass = new SMAAPass(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
+    composer.addPass(smaaPass);
   }
 
   function setView(mode) {
