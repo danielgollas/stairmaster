@@ -21,8 +21,8 @@
       // Include rail diagrams in bounding box
       let maxY = layout.maxBy;
       if (railLayout) {
-        // Four rail diagrams stacked below the stringer
-        maxY = layout.maxBy + 10 + 4 * (3.5 + 14);
+        // Two rail diagrams stacked below the stringer (rail + vertical)
+        maxY = layout.maxBy + 10 + 2 * (3.5 + 14);
       }
       const totalW = layout.maxBx - layout.minBx + margin * 2;
       const totalH = maxY - layout.minBy + margin * 2;
@@ -96,7 +96,7 @@
 
     // Rail blocks
     if (railLayout) {
-      const rails = [railLayout.topRail, railLayout.botRail, railLayout.vert1, railLayout.vert2];
+      const rails = [railLayout.topRail, railLayout.vert1];
       rails.forEach((rail, ri) => {
         const railOy = layout.maxBy + 10 + ri * (rail.boardW + 14);
         blocks.push({
@@ -425,7 +425,7 @@
     const topRailTopTp = bpTopZ + (tpInnerX - bpInnerX) * railSlope;
     const topRailBotTp = topRailTopTp - 2 * halfPerp;
 
-    const topRail = makeRailLayout('Top Rail (2x4)', [
+    const topRail = makeRailLayout('Rail (2x4) — cut 4: 2 top + 2 bottom', [
       { x: bpInnerX, z: topRailBotBp },      // bottom-left
       { x: bpInnerX, z: topRailTopBp },       // top-left
       { x: tpInnerX, z: topRailTopTp },       // top-right
@@ -456,7 +456,7 @@
 
     // Near bottom post
     const v1x = bpInnerX + vInset;
-    const v1 = makeRailLayout('Vertical near bottom post (2x4)', [
+    const v1 = makeRailLayout('Vertical (2x4) — cut 4: 2 per side', [
       { x: v1x - halfW, z: botRailTopAt(v1x - halfW) },   // bottom-left
       { x: v1x - halfW, z: topRailBotAt(v1x - halfW) },   // top-left
       { x: v1x + halfW, z: topRailBotAt(v1x + halfW) },   // top-right
@@ -801,23 +801,35 @@
             {/if}
           {/each}
 
+        <!-- Full board length dimension (green, below board) -->
+        {@const sBlY = L.sw + 2.5}
+        {@const sBoardLen = L.boardRight - L.boardLeft}
+        <line x1={L.boardLeft} y1={sBlY} x2={L.boardRight} y2={sBlY} stroke="#27ae60" stroke-width={0.12} />
+        <line x1={L.boardLeft} y1={sBlY-0.4} x2={L.boardLeft} y2={sBlY+0.4} stroke="#27ae60" stroke-width={0.12} />
+        <line x1={L.boardRight} y1={sBlY-0.4} x2={L.boardRight} y2={sBlY+0.4} stroke="#27ae60" stroke-width={0.12} />
+        <line x1={L.boardLeft} y1={L.sw} x2={L.boardLeft} y2={sBlY} stroke="#27ae60" stroke-width={0.04} opacity={0.3} />
+        <line x1={L.boardRight} y1={L.sw} x2={L.boardRight} y2={sBlY} stroke="#27ae60" stroke-width={0.04} opacity={0.3} />
+        <text x={(L.boardLeft + L.boardRight) / 2} y={sBlY + 0.9} text-anchor="middle" font-size={0.6} fill="#27ae60" font-weight="bold">
+          {fmtFrac(sBoardLen)} board length
+        </text>
+
         <!-- Bottom edge (uncut) label -->
-        <text x={(L.boardLeft + L.boardRight) / 2} y={L.sw + 3}
-          text-anchor="middle" font-size={1} fill="#7f8c8d">
+        <text x={(L.boardLeft + L.boardRight) / 2} y={sBlY + 2.2}
+          text-anchor="middle" font-size={0.8} fill="#7f8c8d">
           bottom edge (uncut)
         </text>
         {/if}
 
         <!-- Rail cut diagrams -->
         {#if railLayout}
-          {#each [railLayout.topRail, railLayout.botRail, railLayout.vert1, railLayout.vert2] as rail, ri}
+          {#each [railLayout.topRail, railLayout.vert1] as rail, ri}
             {@const railOy = L.maxBy + 10 + ri * (rail.boardW + 14)}
             {@const rMargin = 2}
 
             <!-- Title -->
             <text x={rail.boardLeft} y={railOy - 1.5}
               font-size={0.9} fill="#333" font-weight="bold">
-              {rail.label} (qty: 2)
+              {rail.label}
             </text>
 
             <!-- Board rectangle -->
