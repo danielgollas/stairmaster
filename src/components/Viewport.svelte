@@ -36,18 +36,31 @@
     sceneGroup.scale.setScalar(IN_TO_M);
     scene.add(sceneGroup);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    // Key light — distant sun-like directional light
-    const sun = new THREE.DirectionalLight(0xfff5e6, 1.0);
-    sun.position.set(5, 8, 10); // high and to the side
-    scene.add(sun);
-    // Fill light — softer, opposite side
-    const fill = new THREE.DirectionalLight(0xe6f0ff, 0.4);
-    fill.position.set(-3, -2, 4);
+    // Low ambient so bump/normal detail shows through
+    scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+
+    // Hemisphere light: sky bounce (blue-ish) + ground bounce (warm)
+    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x806040, 0.3);
+    scene.add(hemi);
+
+    // Key light — warm sun, high and to the right-front
+    const key = new THREE.DirectionalLight(0xfff0d6, 1.4);
+    key.position.set(4, -3, 8);
+    scene.add(key);
+
+    // Fill light — cool, opposite side, softer
+    const fill = new THREE.DirectionalLight(0xd6e8ff, 0.5);
+    fill.position.set(-5, 2, 3);
     scene.add(fill);
-    // Rim/back light for edge definition
-    const rim = new THREE.DirectionalLight(0xffffff, 0.2);
-    rim.position.set(-2, 5, -3);
+
+    // Bounce light — from below/front to catch undersides
+    const bounce = new THREE.DirectionalLight(0xffe8cc, 0.25);
+    bounce.position.set(1, -4, -1);
+    scene.add(bounce);
+
+    // Rim/back light — behind and above for edge separation
+    const rim = new THREE.DirectionalLight(0xffffff, 0.35);
+    rim.position.set(-3, 6, -4);
     scene.add(rim);
 
     camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.01, 50);
@@ -148,11 +161,11 @@
       }
     }
 
-    // Restore saved camera if available and valid for this view mode
-    const savedCam = loadCamera();
-    const maxDist = 10; // meters — reject if camera is absurdly far
+    // Restore saved camera if available and valid
+    const savedCam = loadCamera(mode);
+    const maxDist = 10;
     let restored = false;
-    if (savedCam && savedCam.viewMode === mode && savedCam.position) {
+    if (savedCam && savedCam.position) {
       const dist = Math.sqrt(savedCam.position[0] ** 2 + savedCam.position[1] ** 2 + savedCam.position[2] ** 2);
       if (dist > 0.01 && dist < maxDist) {
         camera.position.fromArray(savedCam.position);
@@ -176,10 +189,9 @@
 
     controls.addEventListener('change', () => {
       requestRender();
-      saveCamera({
+      saveCamera(mode, {
         position: camera.position.toArray(),
         target: controls.target.toArray(),
-        viewMode: mode,
       });
     });
     controls.update();
