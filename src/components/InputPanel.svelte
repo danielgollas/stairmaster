@@ -13,6 +13,7 @@
     stringerPosition = $bindable(),
     deckingThickness = $bindable(),
     riserBoardThickness = $bindable(),
+    treadOverhang = $bindable(),
     rimJoistWidth = $bindable(),
     sillPlateThickness = $bindable(),
     padAboveGrade = $bindable(),
@@ -111,6 +112,10 @@
       <label>
         <span>Tread depth (in)</span>
         <input type="number" bind:value={treadDepth} step="0.125" min="9" />
+      </label>
+      <label>
+        <span>Tread overhang per side (in)</span>
+        <input type="number" bind:value={treadOverhang} step="0.125" min="0" max="3" />
       </label>
       <label>
         <span>Max stringer OC</span>

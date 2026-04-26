@@ -30,6 +30,7 @@
     stringerPosition: 'inside',
     deckingThickness: DEFAULTS.deckingThickness,
     riserBoardThickness: DEFAULTS.riserBoardThickness,
+    treadOverhang: 2,
     rimJoistWidth: DEFAULTS.rimJoistWidth,
     sillPlateThickness: DEFAULTS.sillPlateThickness,
     padAboveGrade: DEFAULTS.padAboveGrade,
@@ -71,6 +72,7 @@
   let stringerPosition = $state(saved.stringerPosition);
   let deckingThickness = $state(saved.deckingThickness);
   let riserBoardThickness = $state(saved.riserBoardThickness);
+  let treadOverhang = $state(saved.treadOverhang);
   let rimJoistWidth = $state(saved.rimJoistWidth);
   let sillPlateThickness = $state(saved.sillPlateThickness);
   let padAboveGrade = $state(saved.padAboveGrade);
@@ -95,7 +97,7 @@
   $effect(() => {
     const snap = {
       totalHeight, topPostSpacing, riserHeight, treadDepth, stringerOC, stringerPosition,
-      deckingThickness, riserBoardThickness, rimJoistWidth, sillPlateThickness,
+      deckingThickness, riserBoardThickness, treadOverhang, rimJoistWidth, sillPlateThickness,
       padAboveGrade, concreteBelow, gravelDepth, padSideClearance, padBackExtension,
       postHeight, postBase, tensionTie, stringerHanger,
       viewMode, edgeMode, faceMode, aoMode,
@@ -154,7 +156,7 @@
     outerStringerSpan: geometry.outerStringerSpan,
     effectiveWidth: geometry.effectiveWidth,
     stringerPosition,
-    stringerOC, deckingThickness, riserBoardThickness,
+    stringerOC, deckingThickness, riserBoardThickness, treadOverhang,
     rimJoistWidth,
     stringerStockWidth: MATERIALS['2x12'].width,
     stringerStockThickness: MATERIALS['2x12'].thickness,
@@ -195,7 +197,7 @@
     <InputPanel
       bind:totalHeight bind:topPostSpacing
       bind:riserHeight bind:treadDepth bind:stringerOC bind:stringerPosition
-      bind:deckingThickness bind:riserBoardThickness bind:rimJoistWidth
+      bind:deckingThickness bind:riserBoardThickness bind:treadOverhang bind:rimJoistWidth
       bind:sillPlateThickness
       bind:padAboveGrade bind:concreteBelow bind:gravelDepth bind:padSideClearance bind:padBackExtension
       bind:postHeight bind:postBase bind:tensionTie bind:stringerHanger

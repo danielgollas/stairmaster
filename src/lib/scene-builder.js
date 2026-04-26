@@ -542,6 +542,9 @@ export function buildScene(p) {
     return p.padAboveGrade + (i + 1) * p.actualRiserHeight - p.deckingThickness;
   }
 
+  const overhang = p.treadOverhang || 0;
+  const treadW = compWidth + 2 * overhang;
+
   for (let i = 0; i < p.numTreads; i++) {
     const x = i * p.treadDepth;
     const nz = notchZ(i);
@@ -554,11 +557,11 @@ export function buildScene(p) {
       ? rimFace - (boardW + gap + boardW)
       : x - p.riserBoardThickness;
 
-    const front = makeMesh(box(boardW, compWidth, p.deckingThickness), COLORS.decking, 1, 'treads');
+    const front = makeMesh(box(boardW, treadW, p.deckingThickness), COLORS.decking, 1, 'treads');
     front.position.set(treadStart + boardW / 2, compCenterY, nz + p.deckingThickness / 2);
     treadsGroup.add(front);
 
-    const back = makeMesh(box(boardW, compWidth, p.deckingThickness), COLORS.decking, 1, 'treads');
+    const back = makeMesh(box(boardW, treadW, p.deckingThickness), COLORS.decking, 1, 'treads');
     back.position.set(treadStart + boardW + gap + boardW / 2, compCenterY, nz + p.deckingThickness / 2);
     treadsGroup.add(back);
   }
@@ -869,7 +872,7 @@ export function buildScene(p) {
 /**
  * Create a text sprite for dimension labels.
  */
-function makeTextSprite(text, color = '#ffffff', fontSize = 48) {
+function makeTextSprite(text, color = '#ffffff', fontSize = 48, scaleMul = 1.0) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   ctx.font = `300 ${fontSize}px sans-serif`;
@@ -892,7 +895,7 @@ function makeTextSprite(text, color = '#ffffff', fontSize = 48) {
   const mat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
   const sprite = new THREE.Sprite(mat);
   // Scale sprite to reasonable world-space size
-  const scale = Math.max(3, text.length * 0.8);
+  const scale = Math.max(1.5, text.length * 0.45) * scaleMul;
   sprite.scale.set(scale, scale * (h / w), 1);
   return sprite;
 }
@@ -945,9 +948,25 @@ function makeDimLine(from, to, label, color = 0x60a5fa, offset = null) {
 function buildDimensions(p) {
   const group = new THREE.Group();
   const sillY = (p.stairWidth - p.topPostSpacing) / 2;
-  const dimY = -8; // offset to side so dims don't overlap geometry
+  // Place dims just outside the visible (left) stringer face. Outer stringer
+  // outer face is at y = firstStringerY for outside mount, or y = sillY - st
+  // for inside mount. Use a small offset outside that face.
+  const st = p.stringerStockThickness || 1.5;
+  const ps = p.postSize || 3.5;
+  const outerStringerY = (p.stringerPosition === 'outside')
+    ? sillY - ps - st
+    : sillY - st;
+  const dimY = outerStringerY - 1.5;
 
-  // Total height: grade to deck top
+  // Pad coordinates (used for several pad dims)
+  const padShiftD = -p.riserBoardThickness;
+  const basePadDepthD = p.seatCutLength + p.treadDepth;
+  const padFrontXD = padShiftD - basePadDepthD / 2;
+  const padBackXD = padFrontXD + p.padDepth;
+  const rimFrontXD = p.totalRun - 1.5;
+  const padZ = -p.concreteBelow - p.gravelDepth - 3;
+
+  // Total height: grade to deck top (far end of run, beyond rim)
   group.add(makeDimLine(
     [p.totalRun + 8, dimY, 0],
     [p.totalRun + 8, dimY, p.totalHeight],
@@ -955,19 +974,19 @@ function buildDimensions(p) {
     0xf472b6
   ));
 
-  // Total run
+  // Total run (below grade, spans pad-front-projected to rim-front)
   group.add(makeDimLine(
-    [0, dimY, -4],
-    [p.totalRun, dimY, -4],
+    [0, dimY, -3],
+    [p.totalRun, dimY, -3],
     `${p.totalRun.toFixed(1)}" run`,
     0x60a5fa
   ));
 
-  // Per-riser height labels positioned next to each riser
+  // Per-riser height labels — alternate offset to reduce label overlap
   for (let i = 0; i < p.numRisers; i++) {
     const zFrom = p.padAboveGrade + i * p.actualRiserHeight;
     const zTo = p.padAboveGrade + (i + 1) * p.actualRiserHeight;
-    const riserX = i * p.treadDepth - 3; // just in front of each riser
+    const riserX = i * p.treadDepth - (i % 2 === 0 ? 1.5 : 3.0);
     const label = `${(zTo - zFrom).toFixed(2)}"`;
     group.add(makeDimLine(
       [riserX, dimY, zFrom],
@@ -977,11 +996,11 @@ function buildDimensions(p) {
     ));
   }
 
-  // Per-tread horizontal measurements (riser outer face to riser outer face)
+  // Per-tread horizontal measurements — alternate Z to stagger labels
   for (let i = 0; i < p.numTreads; i++) {
     const xFrom = i * p.treadDepth;
     const xTo = (i + 1) * p.treadDepth;
-    const z = p.padAboveGrade + (i + 1) * p.actualRiserHeight + 2;
+    const z = p.padAboveGrade + (i + 1) * p.actualRiserHeight + 1 + (i % 2) * 1.6;
     const label = `${p.treadDepth}" T${i + 1}`;
     group.add(makeDimLine(
       [xFrom, dimY, z],
@@ -997,9 +1016,8 @@ function buildDimensions(p) {
   angleSprite.position.set(p.totalRun * 0.15, dimY, p.totalHeight * 0.08);
   group.add(angleSprite);
 
-  // Pad width
-  const padCenterX = p.padDepth / 2;
-  const padZ = -p.concreteBelow - p.gravelDepth - 3;
+  // Pad width (transverse, far side of pad in Y)
+  const padCenterX = (padFrontXD + padBackXD) / 2;
   group.add(makeDimLine(
     [padCenterX, sillY - p.padSideClearance, padZ],
     [padCenterX, sillY + p.topPostSpacing + p.padSideClearance, padZ],
@@ -1007,12 +1025,23 @@ function buildDimensions(p) {
     0x94a3b8
   ));
 
-  // Pad depth
+  // Pad depth (along stair X) — line drawn directly under the pad's actual
+  // front and back X positions (was previously at world x=0..padDepth, which
+  // landed in the wrong place because the pad is shifted backward)
   group.add(makeDimLine(
-    [0, sillY + p.topPostSpacing + p.padSideClearance + 3, padZ],
-    [p.padDepth, sillY + p.topPostSpacing + p.padSideClearance + 3, padZ],
+    [padFrontXD, sillY + p.topPostSpacing + p.padSideClearance + 3, padZ],
+    [padBackXD, sillY + p.topPostSpacing + p.padSideClearance + 3, padZ],
     `${p.padDepth.toFixed(1)}" D`,
     0x94a3b8
+  ));
+
+  // Distance from pad inside (deck-facing) edge to rim board front plumb
+  const padToRim = rimFrontXD - padBackXD;
+  group.add(makeDimLine(
+    [padBackXD, dimY, 1.5],
+    [rimFrontXD, dimY, 1.5],
+    `${padToRim.toFixed(2)}" pad to rim`,
+    0xfb7185
   ));
 
   // Stair width
@@ -1029,7 +1058,7 @@ function buildDimensions(p) {
   const rise = p.actualRiserHeight;
   const run = p.treadDepth;
   const rb = p.riserBoardThickness;
-  const subY = dimY - 6;  // further offset so they don't overlap main dims
+  const subY = dimY - 1.5;  // just behind main dims (still close to stringer face)
 
   if (p.numTreads >= 2) {
     // Use step index 1 (second step) for measurements
