@@ -197,6 +197,18 @@
       }
     }
 
+    // Force orthographic views to stay axis-aligned: camera sits along the
+    // viewing axis at a fixed distance from the target, with the other two
+    // coordinates matched to the target. Saved state may have been captured
+    // before rotation was locked, leaving a slight skew.
+    if (mode === 'side') {
+      camera.position.set(controls.target.x, controls.target.y - 100 * s, controls.target.z);
+      camera.lookAt(controls.target);
+    } else if (mode === 'front') {
+      camera.position.set(controls.target.x - 100 * s, controls.target.y, controls.target.z);
+      camera.lookAt(controls.target);
+    }
+
     controls.addEventListener('change', () => {
       requestRender();
       saveCamera(mode, {

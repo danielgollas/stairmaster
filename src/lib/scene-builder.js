@@ -623,17 +623,27 @@ export function buildScene(p) {
   meshes.deckSurface = deckMesh;
 
   // --- Top posts ---
-  // Top posts rise from the deck surface (top of decking), same height as bottom posts
-  // from their walking surface. This keeps the rails parallel to the stringer slope.
+  // Top posts rise from the deck surface. Their height is adjusted so the
+  // post top is flush with the top rail at the top post inner face — the rail
+  // follows stringer slope from the bottom post top, and the horizontal span
+  // between post inner faces is generally not numRisers*treadDepth, so a
+  // straight `postHeight` would leave the top post protruding above the rail.
   const topPostsGroup = new THREE.Group();
   const topPostZ = p.totalHeight;  // deck surface = top of decking
 
-  const tlPost = makeMesh(box(ps, ps, postH), COLORS.post, 1, 'posts');
-  tlPost.position.set(rimX + 1.5 + ps / 2, sillY - ps + ps / 2, topPostZ + postH / 2);
+  const tpCenterX = rimX + 1.5 + ps / 2;
+  const bpInnerXForPost = postX + ps / 2;
+  const tpInnerXForPost = tpCenterX - ps / 2;
+  const railSlopeForPost = p.actualRiserHeight / p.treadDepth;
+  const bpTopZForPost = postBaseZ + postH;
+  const topPostH = bpTopZForPost + (tpInnerXForPost - bpInnerXForPost) * railSlopeForPost - topPostZ;
+
+  const tlPost = makeMesh(box(ps, ps, topPostH), COLORS.post, 1, 'posts');
+  tlPost.position.set(tpCenterX, sillY - ps + ps / 2, topPostZ + topPostH / 2);
   topPostsGroup.add(tlPost);
 
-  const trPost = makeMesh(box(ps, ps, postH), COLORS.post, 1, 'posts');
-  trPost.position.set(rimX + 1.5 + ps / 2, sillY + p.topPostSpacing + ps / 2, topPostZ + postH / 2);
+  const trPost = makeMesh(box(ps, ps, topPostH), COLORS.post, 1, 'posts');
+  trPost.position.set(tpCenterX, sillY + p.topPostSpacing + ps / 2, topPostZ + topPostH / 2);
   topPostsGroup.add(trPost);
 
   meshes.topPosts = topPostsGroup;
@@ -654,7 +664,7 @@ export function buildScene(p) {
     const bpTopZ = bpZ + postH;           // bottom post top Z
     const tpX = rimX + 1.5 + ps / 2;     // top post center X
     const tpZ = topPostZ;                 // top post base Z
-    const tpTopZ = tpZ + postH;           // top post top Z
+    const tpTopZ = tpZ + topPostH;        // top post top Z (flush with rail)
 
     // Inner faces of posts (the faces that face each other)
     const bpInnerX = postX + ps / 2;     // bottom post inner face
@@ -1094,13 +1104,28 @@ function buildDimensions(p) {
     ));
   }
 
-  // Throat dimension (perpendicular to slope)
-  const throatSprite = makeTextSprite(`${p.throat.toFixed(2)}" throat`, '#e67e22');
-  // Position near the middle of the stringer body
-  const midX = p.totalRun * 0.4;
-  const midZ = seatZ + 2 * rise - drop - p.stringerStockWidth * 0.3;
-  throatSprite.position.set(midX, subY, midZ);
-  group.add(throatSprite);
+  // Throat — perpendicular line from notch inside (concave) corner to bottom edge.
+  // Use the corner at the back of the second tread (step 1) — that's between
+  // step 1 and step 2's riser, where geometry is regular (the bottom step's
+  // drop makes the first notch an awkward place to draw it).
+  // Bottom edge is parallel to slope (rise/run); perpendicular into the
+  // stringer body is (rise, -run) / hyp.
+  if (p.numTreads >= 3) {
+    const siT = 2;
+    const hyp = Math.sqrt(rise * rise + run * run);
+    const tDx = rise / hyp;
+    const tDz = -run / hyp;
+    const startX = siT * run;
+    const startZ = seatZ + siT * rise - drop;
+    const endX = startX + p.throat * tDx;
+    const endZ = startZ + p.throat * tDz;
+    group.add(makeDimLine(
+      [startX, subY, startZ],
+      [endX, subY, endZ],
+      `${p.throat.toFixed(2)}" throat`,
+      0xfde047
+    ));
+  }
 
   // Seat length
   const seatEndX = p.stringerStockWidth * rise / Math.sqrt(rise * rise + run * run);
